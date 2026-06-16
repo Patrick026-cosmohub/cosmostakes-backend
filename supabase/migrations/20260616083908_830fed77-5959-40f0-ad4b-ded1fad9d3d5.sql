@@ -1,0 +1,2 @@
+ALTER TABLE public.staff_profiles ADD COLUMN IF NOT EXISTS username text;
+CREATE UNIQUE INDEX IF NOT EXISTS staff_profiles_username_unique ON public.staff_profiles (lower(username)) WHERE username IS NOT NULL;
