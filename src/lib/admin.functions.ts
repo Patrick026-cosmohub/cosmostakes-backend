@@ -386,6 +386,7 @@ export const createStaff = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
+        username: z.string().trim().min(2).max(40).regex(/^[a-zA-Z0-9_.-]+$/, "Username may use letters, numbers, _ . -"),
         email: z.string().email(),
         password: z.string().min(8).max(128),
         full_name: z.string().min(1).max(120),
@@ -402,6 +403,13 @@ export const createStaff = createServerFn({ method: "POST" })
     if (!isSuper) throw new Error("Forbidden: super admin only");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: clash } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("id")
+      .ilike("username", data.username)
+      .maybeSingle();
+    if (clash) throw new Error("Username already taken");
+
     const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
@@ -414,7 +422,7 @@ export const createStaff = createServerFn({ method: "POST" })
     // Ensure profile exists (trigger should handle it, but upsert to be safe).
     await supabaseAdmin
       .from("staff_profiles")
-      .upsert({ id: newId, email: data.email, full_name: data.full_name, is_active: true });
+      .upsert({ id: newId, email: data.email, username: data.username, full_name: data.full_name, is_active: true });
 
     // Replace any auto-assigned roles with the chosen set.
     await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
@@ -427,7 +435,7 @@ export const createStaff = createServerFn({ method: "POST" })
       action: "staff.create",
       entity_type: "staff",
       entity_id: newId,
-      metadata: { email: data.email, roles: data.roles },
+      metadata: { email: data.email, username: data.username, roles: data.roles },
     });
     return { ok: true, id: newId };
   });
