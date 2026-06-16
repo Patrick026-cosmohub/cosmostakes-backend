@@ -120,6 +120,48 @@ export const getPlayer = createServerFn({ method: "GET" })
     return { player, ledger: ledger ?? [] };
   });
 
+/**
+ * Players segmented into "new_signup" (no approved deposit yet) and
+ * "returning" (≥1 deposit ledger row). Shared search by username, name,
+ * phone, email, or game_id.
+ */
+export const listPlayersSegmented = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ q: z.string().max(120).default("") }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    let query = supabase
+      .from("players")
+      .select("id,username,full_name,email,phone,game_id,status,balance,created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    const q = data.q.trim();
+    if (q) {
+      const like = `%${q}%`;
+      query = query.or(
+        `username.ilike.${like},full_name.ilike.${like},email.ilike.${like},phone.ilike.${like},game_id.ilike.${like}`,
+      );
+    }
+    const { data: players, error } = await query;
+    if (error) throw new Error(error.message);
+    const ids = (players ?? []).map((p) => p.id);
+    const depositorIds = new Set<string>();
+    if (ids.length) {
+      const { data: depositRows } = await supabase
+        .from("wallet_ledger")
+        .select("player_id")
+        .eq("type", "deposit")
+        .in("player_id", ids);
+      (depositRows ?? []).forEach((r) => depositorIds.add(r.player_id));
+    }
+    const newSignups: typeof players = [];
+    const returning: typeof players = [];
+    (players ?? []).forEach((p) => {
+      (depositorIds.has(p.id) ? returning : newSignups).push(p);
+    });
+    return { newSignups, returning };
+  });
+
 export const createPlayer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
