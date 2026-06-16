@@ -188,6 +188,48 @@ export type Database = {
         }
         Relationships: []
       }
+      general_settings: {
+        Row: {
+          company_logo_url: string | null
+          created_at: string
+          currency: string
+          date_format: string
+          id: boolean
+          platform_name: string
+          support_email: string | null
+          support_phone: string | null
+          time_format: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          company_logo_url?: string | null
+          created_at?: string
+          currency?: string
+          date_format?: string
+          id?: boolean
+          platform_name?: string
+          support_email?: string | null
+          support_phone?: string | null
+          time_format?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          company_logo_url?: string | null
+          created_at?: string
+          currency?: string
+          date_format?: string
+          id?: boolean
+          platform_name?: string
+          support_email?: string | null
+          support_phone?: string | null
+          time_format?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_methods: {
         Row: {
           created_at: string
@@ -214,6 +256,59 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      platform_integrations: {
+        Row: {
+          api_endpoint: string | null
+          api_key: string | null
+          connection_status: string
+          created_at: string
+          game_id: string
+          id: string
+          last_synced_at: string | null
+          last_test_at: string | null
+          last_test_message: string | null
+          secret_key: string | null
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          api_endpoint?: string | null
+          api_key?: string | null
+          connection_status?: string
+          created_at?: string
+          game_id: string
+          id?: string
+          last_synced_at?: string | null
+          last_test_at?: string | null
+          last_test_message?: string | null
+          secret_key?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          api_endpoint?: string | null
+          api_key?: string | null
+          connection_status?: string
+          created_at?: string
+          game_id?: string
+          id?: string
+          last_synced_at?: string | null
+          last_test_at?: string | null
+          last_test_message?: string | null
+          secret_key?: string | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_integrations_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: true
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       players: {
         Row: {
