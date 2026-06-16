@@ -162,6 +162,92 @@ export const listPlayersSegmented = createServerFn({ method: "GET" })
     return { newSignups, returning };
   });
 
+/**
+ * Per-payment-method stats: deposit & cashout counts/totals, split by status.
+ * One row per active payment method, plus an "Unassigned" bucket for requests
+ * without a method.
+ */
+export const listPaymentMethodStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const [{ data: methods }, { data: deposits }, { data: cashouts }] = await Promise.all([
+      supabase.from("payment_methods").select("id,name,kind,is_active").order("name"),
+      supabase.from("deposit_requests").select("amount,status,payment_method_id"),
+      supabase.from("cashout_requests").select("amount,status,payment_method_id"),
+    ]);
+
+    type Bucket = {
+      count: number;
+      total: number;
+      pending: number;
+      pendingTotal: number;
+      approved: number;
+      approvedTotal: number;
+      rejected: number;
+    };
+    const empty = (): Bucket => ({
+      count: 0,
+      total: 0,
+      pending: 0,
+      pendingTotal: 0,
+      approved: 0,
+      approvedTotal: 0,
+      rejected: 0,
+    });
+    const bump = (b: Bucket, amount: number, status: string) => {
+      b.count += 1;
+      b.total += amount;
+      if (status === "pending") {
+        b.pending += 1;
+        b.pendingTotal += amount;
+      } else if (status === "approved") {
+        b.approved += 1;
+        b.approvedTotal += amount;
+      } else if (status === "rejected" || status === "failed") {
+        b.rejected += 1;
+      }
+    };
+
+    const depMap = new Map<string, Bucket>();
+    const outMap = new Map<string, Bucket>();
+    const key = (id: string | null) => id ?? "__unassigned__";
+
+    (deposits ?? []).forEach((r) => {
+      const k = key(r.payment_method_id);
+      if (!depMap.has(k)) depMap.set(k, empty());
+      bump(depMap.get(k)!, Number(r.amount), r.status as string);
+    });
+    (cashouts ?? []).forEach((r) => {
+      const k = key(r.payment_method_id);
+      if (!outMap.has(k)) outMap.set(k, empty());
+      bump(outMap.get(k)!, Number(r.amount), r.status as string);
+    });
+
+    const rows = (methods ?? []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      kind: m.kind,
+      is_active: m.is_active,
+      deposits: depMap.get(m.id) ?? empty(),
+      cashouts: outMap.get(m.id) ?? empty(),
+    }));
+
+    const unassignedDep = depMap.get("__unassigned__");
+    const unassignedOut = outMap.get("__unassigned__");
+    if (unassignedDep || unassignedOut) {
+      rows.push({
+        id: "__unassigned__",
+        name: "Unassigned",
+        kind: "other",
+        is_active: true,
+        deposits: unassignedDep ?? empty(),
+        cashouts: unassignedOut ?? empty(),
+      });
+    }
+    return rows;
+  });
+
 export const createPlayer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
