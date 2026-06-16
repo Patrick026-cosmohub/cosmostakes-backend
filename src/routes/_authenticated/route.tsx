@@ -18,6 +18,7 @@ import {
   X,
   CreditCard,
   BarChart3,
+  Gamepad2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL, type Role } from "@/lib/format";
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/_authenticated")({
 
 const NAV: { to: string; label: string; icon: typeof LayoutDashboard; roles?: Role[] }[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/platforms", label: "Platforms", icon: Gamepad2 },
   { to: "/players", label: "Players", icon: Users },
   { to: "/deposits", label: "Deposits", icon: ArrowDownToLine },
   { to: "/cashouts", label: "Cashouts", icon: ArrowUpFromLine },
