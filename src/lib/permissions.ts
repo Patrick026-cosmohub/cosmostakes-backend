@@ -21,7 +21,16 @@ export type Permission =
   | "audit.view"
   | "staff.manage"
   | "settings.manage"
-  | "roles.manage";
+  | "roles.manage"
+  | "transactions.view"
+  | "promotions.manage"
+  | "vip.manage"
+  | "announcements.manage"
+  | "cms.manage"
+  | "security.manage"
+  | "notifications.manage"
+  | "backups.manage"
+  | "system.view";
 
 /**
  * Role → permission map.
@@ -49,6 +58,15 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "staff.manage",
     "settings.manage",
     "roles.manage",
+    "transactions.view",
+    "promotions.manage",
+    "vip.manage",
+    "announcements.manage",
+    "cms.manage",
+    "security.manage",
+    "notifications.manage",
+    "backups.manage",
+    "system.view",
   ],
   admin: [
     "dashboard.view",
@@ -62,6 +80,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "payment_methods.view",
     "payment_methods.manage",
     "audit.view",
+    "transactions.view",
+    "promotions.manage",
+    "announcements.manage",
   ],
   finance_agent: [
     "dashboard.view",
@@ -70,12 +91,15 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "wallet_tools.use",
     "deposits.view",
     "cashouts.view",
+    "transactions.view",
+    "backups.manage",
   ],
   support_agent: [
     "dashboard.view",
     "players.view",
     "deposits.view",
     "cashouts.view",
+    "transactions.view",
   ],
 };
 
