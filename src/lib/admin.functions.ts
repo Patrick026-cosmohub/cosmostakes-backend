@@ -481,7 +481,7 @@ export const updateStaff = createServerFn({ method: "POST" })
     if (!isSuper) throw new Error("Forbidden: super admin only");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const profilePatch: Record<string, unknown> = {};
+    const profilePatch: { username?: string; full_name?: string; email?: string } = {};
     if (data.username !== undefined) {
       const { data: clash } = await supabaseAdmin
         .from("staff_profiles")
