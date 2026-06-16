@@ -302,7 +302,7 @@ export const listRequests = createServerFn({ method: "GET" })
     const selectCols =
       data.kind === "deposit"
         ? "id,amount,status,reference,notes,requested_at,processed_at,processed_by,player:players(id,username,full_name,game_id),method:payment_methods(name,kind)"
-        : "id,amount,status,destination,notes,requested_at,processed_at,processed_by,player:players(id,username,full_name,game_id),method:payment_methods(name,kind)";
+        : "id,amount,status,destination,notes,requested_at,processed_at,processed_by,player:players(id,username,full_name,game_id,game:games(id,name,provider)),method:payment_methods(name,kind)";
     let q = supabase
       .from(table)
       .select(selectCols)
