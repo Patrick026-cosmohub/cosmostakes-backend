@@ -424,7 +424,7 @@ export const getSystemStatus = createServerFn({ method: "GET" })
 
     const { data: integrations } = await context.supabase
       .from("platform_integrations")
-      .select("id,status,last_tested_at,game:games(name)");
+      .select("id,connection_status,last_test_at,game:games(name)");
 
     return {
       db: { ok: !dbErr, latencyMs: dbLatency, error: dbErr?.message ?? null },

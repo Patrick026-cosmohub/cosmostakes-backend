@@ -33,11 +33,11 @@ function SystemPage() {
             <CardContent className="p-5">
               <h2 className="text-sm font-semibold mb-3">Platform API integrations</h2>
               <ul className="divide-y divide-border/50">
-                {(d.integrations as Array<{ id: string; status: string | null; last_tested_at: string | null; game: { name: string } | null }>).map((i) => (
+                {(d.integrations as unknown as Array<{ id: string; connection_status: string | null; last_test_at: string | null; game: { name: string } | null }>).map((i) => (
                   <li key={i.id} className="py-2 flex items-center gap-3 text-sm">
-                    <Badge variant={i.status === "connected" ? "default" : i.status === "error" ? "destructive" : "secondary"}>{i.status ?? "—"}</Badge>
+                    <Badge variant={i.connection_status === "connected" ? "default" : i.connection_status === "error" ? "destructive" : "secondary"}>{i.connection_status ?? "—"}</Badge>
                     <span className="font-medium">{i.game?.name ?? "Unknown"}</span>
-                    <span className="ml-auto text-xs text-muted-foreground">{i.last_tested_at ? fmtRelative(i.last_tested_at) : "never tested"}</span>
+                    <span className="ml-auto text-xs text-muted-foreground">{i.last_test_at ? fmtRelative(i.last_test_at) : "never tested"}</span>
                   </li>
                 ))}
                 {(d.integrations as unknown[]).length === 0 && <li className="py-4 text-xs text-muted-foreground text-center">No integrations configured.</li>}
