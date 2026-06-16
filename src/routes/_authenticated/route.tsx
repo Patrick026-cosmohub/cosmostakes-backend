@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL, type Role } from "@/lib/format";
+import { hasPermission, type Permission } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated")({
