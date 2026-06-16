@@ -132,7 +132,7 @@ export const listPlayersSegmented = createServerFn({ method: "GET" })
     const { supabase } = context;
     let query = supabase
       .from("players")
-      .select("id,username,full_name,email,phone,game_id,status,balance,created_at")
+      .select("id,username,full_name,email,phone,game_id,status,balance,created_at,game:games(id,name,provider)")
       .order("created_at", { ascending: false })
       .limit(500);
     const q = data.q.trim();

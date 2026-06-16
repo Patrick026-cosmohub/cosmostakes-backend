@@ -32,6 +32,7 @@ type PlayerRow = {
   status: string;
   balance: number | string;
   created_at: string;
+  game: { id: string; name: string; provider: string } | null;
 };
 
 function PlayersPage() {
@@ -136,6 +137,7 @@ function PlayerListCard({
               <TableHead>Full name</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Game ID</TableHead>
+              <TableHead>Game</TableHead>
               <TableHead className="text-right">Balance</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Joined</TableHead>
@@ -144,13 +146,13 @@ function PlayerListCard({
           <TableBody>
             {loading && rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                   Loading…
                 </TableCell>
               </TableRow>
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
                   {emptyLabel}
                 </TableCell>
               </TableRow>
@@ -163,6 +165,15 @@ function PlayerListCard({
                     {p.email || p.phone || "—"}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">{p.game_id ?? "—"}</TableCell>
+                  <TableCell className="text-xs">
+                    {p.game ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
+                        {p.game.name}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{fmtUSD(p.balance as number)}</TableCell>
                   <TableCell>
                     <span
