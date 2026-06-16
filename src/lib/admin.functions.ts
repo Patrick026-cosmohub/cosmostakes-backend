@@ -377,6 +377,79 @@ export const setStaffRoles = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Super-admin: create a new staff account with chosen roles. */
+export const createStaff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        email: z.string().email(),
+        password: z.string().min(8).max(128),
+        full_name: z.string().min(1).max(120),
+        roles: z
+          .array(z.enum(["super_admin", "admin", "finance_agent", "support_agent"]))
+          .min(1)
+          .max(4),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    if (!isSuper) throw new Error("Forbidden: super admin only");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { full_name: data.full_name },
+    });
+    if (createErr || !created.user) throw new Error(createErr?.message ?? "Failed to create user");
+    const newId = created.user.id;
+
+    // Ensure profile exists (trigger should handle it, but upsert to be safe).
+    await supabaseAdmin
+      .from("staff_profiles")
+      .upsert({ id: newId, email: data.email, full_name: data.full_name, is_active: true });
+
+    // Replace any auto-assigned roles with the chosen set.
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
+    await supabaseAdmin
+      .from("user_roles")
+      .insert(data.roles.map((role) => ({ user_id: newId, role })));
+
+    await supabase.from("audit_logs").insert({
+      staff_id: userId,
+      action: "staff.create",
+      entity_type: "staff",
+      entity_id: newId,
+      metadata: { email: data.email, roles: data.roles },
+    });
+    return { ok: true, id: newId };
+  });
+
+/** Super-admin: toggle active flag on a staff account. */
+export const setStaffActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ user_id: z.string().uuid(), is_active: z.boolean() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    if (!isSuper) throw new Error("Forbidden: super admin only");
+    if (data.user_id === userId) throw new Error("Cannot deactivate your own account");
+    await supabase.from("staff_profiles").update({ is_active: data.is_active }).eq("id", data.user_id);
+    await supabase.from("audit_logs").insert({
+      staff_id: userId,
+      action: data.is_active ? "staff.activate" : "staff.deactivate",
+      entity_type: "staff",
+      entity_id: data.user_id,
+    });
+    return { ok: true };
+  });
+
 export const listPaymentMethods = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
