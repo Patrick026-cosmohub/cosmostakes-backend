@@ -299,11 +299,13 @@ export const listRequests = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const { supabase } = context;
     const table = data.kind === "deposit" ? "deposit_requests" : "cashout_requests";
+    const selectCols =
+      data.kind === "deposit"
+        ? "id,amount,status,reference,notes,requested_at,processed_at,processed_by,player:players(id,username,full_name,game_id),method:payment_methods(name,kind)"
+        : "id,amount,status,destination,notes,requested_at,processed_at,processed_by,player:players(id,username,full_name,game_id),method:payment_methods(name,kind)";
     let q = supabase
       .from(table)
-      .select(
-        "id,amount,status,reference,destination,notes,requested_at,processed_at,processed_by,player:players(id,username,full_name,game_id),method:payment_methods(name,kind)",
-      )
+      .select(selectCols)
       .order("requested_at", { ascending: false })
       .limit(200);
     if (data.status !== "all") q = q.eq("status", data.status);
