@@ -461,6 +461,100 @@ export const setStaffActive = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Super-admin: edit a staff member's identity / password. */
+export const updateStaff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        user_id: z.string().uuid(),
+        username: z.string().trim().min(2).max(40).regex(/^[a-zA-Z0-9_.-]+$/).optional(),
+        full_name: z.string().min(1).max(120).optional(),
+        email: z.string().email().optional(),
+        password: z.string().min(8).max(128).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    if (!isSuper) throw new Error("Forbidden: super admin only");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const profilePatch: Record<string, unknown> = {};
+    if (data.username !== undefined) {
+      const { data: clash } = await supabaseAdmin
+        .from("staff_profiles")
+        .select("id")
+        .ilike("username", data.username)
+        .neq("id", data.user_id)
+        .maybeSingle();
+      if (clash) throw new Error("Username already taken");
+      profilePatch.username = data.username;
+    }
+    if (data.full_name !== undefined) profilePatch.full_name = data.full_name;
+    if (data.email !== undefined) profilePatch.email = data.email;
+
+    if (Object.keys(profilePatch).length) {
+      const { error } = await supabaseAdmin.from("staff_profiles").update(profilePatch).eq("id", data.user_id);
+      if (error) throw new Error(error.message);
+    }
+
+    const authPatch: { email?: string; password?: string } = {};
+    if (data.email) authPatch.email = data.email;
+    if (data.password) authPatch.password = data.password;
+    if (Object.keys(authPatch).length) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, authPatch);
+      if (error) throw new Error(error.message);
+    }
+
+    await supabase.from("audit_logs").insert({
+      staff_id: userId,
+      action: "staff.update",
+      entity_type: "staff",
+      entity_id: data.user_id,
+      metadata: {
+        changed: [
+          ...Object.keys(profilePatch),
+          ...(data.password ? ["password"] : []),
+        ],
+      },
+    });
+    return { ok: true };
+  });
+
+/** Detail view for a single staff member: profile + roles + recent audit log. */
+export const getStaffDetail = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ user_id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    if (!isSuper) throw new Error("Forbidden: super admin only");
+
+    const [{ data: profile }, { data: roles }, { data: activity }, { count: actionCount }] = await Promise.all([
+      supabase
+        .from("staff_profiles")
+        .select("id,email,username,full_name,is_active,created_at")
+        .eq("id", data.user_id)
+        .maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", data.user_id),
+      supabase
+        .from("audit_logs")
+        .select("id,action,entity_type,entity_id,metadata,created_at")
+        .eq("staff_id", data.user_id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase.from("audit_logs").select("id", { count: "exact", head: true }).eq("staff_id", data.user_id),
+    ]);
+    return {
+      profile,
+      roles: (roles ?? []).map((r) => r.role as string),
+      activity: activity ?? [],
+      totalActions: actionCount ?? 0,
+    };
+  });
+
 export const listPaymentMethods = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
