@@ -222,6 +222,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           game_id: string | null
+          game_ref_id: string | null
           id: string
           notes: string | null
           phone: string | null
@@ -235,6 +236,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           game_id?: string | null
+          game_ref_id?: string | null
           id?: string
           notes?: string | null
           phone?: string | null
@@ -248,6 +250,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           game_id?: string | null
+          game_ref_id?: string | null
           id?: string
           notes?: string | null
           phone?: string | null
@@ -255,7 +258,15 @@ export type Database = {
           updated_at?: string
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "players_game_ref_id_fkey"
+            columns: ["game_ref_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_profiles: {
         Row: {
