@@ -63,7 +63,7 @@ function DepositsPage() {
     queryKey: ["deposits", status],
     queryFn: () => fetchRequests({ data: { kind: "deposit", status } }),
   });
-  const rows = (q.data ?? []) as DepositRow[];
+  const rows = (q.data ?? []) as unknown as DepositRow[];
 
   const decideMutation = useMutation({
     mutationFn: (vars: { id: string; decision: "approved" | "rejected" }) =>
