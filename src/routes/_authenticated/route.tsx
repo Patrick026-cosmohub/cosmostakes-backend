@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   CreditCard,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL, type Role } from "@/lib/format";
@@ -40,6 +41,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; roles?: Ro
   { to: "/payment-methods", label: "Payment Methods", icon: CreditCard },
   { to: "/wallet-tools", label: "Wallet Tools", icon: Wallet, roles: ["super_admin", "admin", "finance_agent"] },
   { to: "/audit-log", label: "Audit Log", icon: ScrollText },
+  { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/staff", label: "Staff", icon: Shield, roles: ["super_admin"] },
   { to: "/settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
 ];
