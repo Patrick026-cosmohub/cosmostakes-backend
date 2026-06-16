@@ -12,17 +12,28 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedVipRouteImport } from './routes/_authenticated/vip'
+import { Route as AuthenticatedTransactionsRouteImport } from './routes/_authenticated/transactions'
+import { Route as AuthenticatedSystemRouteImport } from './routes/_authenticated/system'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedRolesRouteImport } from './routes/_authenticated/roles'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedPromotionsRouteImport } from './routes/_authenticated/promotions'
 import { Route as AuthenticatedPlayersRouteImport } from './routes/_authenticated/players'
 import { Route as AuthenticatedPlatformsRouteImport } from './routes/_authenticated/platforms'
 import { Route as AuthenticatedPaymentMethodsRouteImport } from './routes/_authenticated/payment-methods'
+import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedDepositsRouteImport } from './routes/_authenticated/deposits'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCmsThemeRouteImport } from './routes/_authenticated/cms-theme'
+import { Route as AuthenticatedCmsMusicRouteImport } from './routes/_authenticated/cms-music'
+import { Route as AuthenticatedCmsGamesRouteImport } from './routes/_authenticated/cms-games'
 import { Route as AuthenticatedCashoutsRouteImport } from './routes/_authenticated/cashouts'
+import { Route as AuthenticatedBackupsRouteImport } from './routes/_authenticated/backups'
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
+import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -38,6 +49,22 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedVipRoute = AuthenticatedVipRouteImport.update({
+  id: '/vip',
+  path: '/vip',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTransactionsRoute =
+  AuthenticatedTransactionsRouteImport.update({
+    id: '/transactions',
+    path: '/transactions',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSystemRoute = AuthenticatedSystemRouteImport.update({
+  id: '/system',
+  path: '/system',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
@@ -48,6 +75,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRolesRoute = AuthenticatedRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -56,6 +88,11 @@ const AuthenticatedRolesRoute = AuthenticatedRolesRouteImport.update({
 const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPromotionsRoute = AuthenticatedPromotionsRouteImport.update({
+  id: '/promotions',
+  path: '/promotions',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPlayersRoute = AuthenticatedPlayersRouteImport.update({
@@ -74,6 +111,12 @@ const AuthenticatedPaymentMethodsRoute =
     path: '/payment-methods',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedNotificationsRoute =
+  AuthenticatedNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDepositsRoute = AuthenticatedDepositsRouteImport.update({
   id: '/deposits',
   path: '/deposits',
@@ -84,9 +127,29 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCmsThemeRoute = AuthenticatedCmsThemeRouteImport.update({
+  id: '/cms-theme',
+  path: '/cms-theme',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCmsMusicRoute = AuthenticatedCmsMusicRouteImport.update({
+  id: '/cms-music',
+  path: '/cms-music',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCmsGamesRoute = AuthenticatedCmsGamesRouteImport.update({
+  id: '/cms-games',
+  path: '/cms-games',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCashoutsRoute = AuthenticatedCashoutsRouteImport.update({
   id: '/cashouts',
   path: '/cashouts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBackupsRoute = AuthenticatedBackupsRouteImport.update({
+  id: '/backups',
+  path: '/backups',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAuditLogRoute = AuthenticatedAuditLogRouteImport.update({
@@ -94,101 +157,173 @@ const AuthenticatedAuditLogRoute = AuthenticatedAuditLogRouteImport.update({
   path: '/audit-log',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAnnouncementsRoute =
+  AuthenticatedAnnouncementsRouteImport.update({
+    id: '/announcements',
+    path: '/announcements',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
+  '/backups': typeof AuthenticatedBackupsRoute
   '/cashouts': typeof AuthenticatedCashoutsRoute
+  '/cms-games': typeof AuthenticatedCmsGamesRoute
+  '/cms-music': typeof AuthenticatedCmsMusicRoute
+  '/cms-theme': typeof AuthenticatedCmsThemeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/deposits': typeof AuthenticatedDepositsRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/payment-methods': typeof AuthenticatedPaymentMethodsRoute
   '/platforms': typeof AuthenticatedPlatformsRoute
   '/players': typeof AuthenticatedPlayersRoute
+  '/promotions': typeof AuthenticatedPromotionsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/roles': typeof AuthenticatedRolesRoute
+  '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/system': typeof AuthenticatedSystemRoute
+  '/transactions': typeof AuthenticatedTransactionsRoute
+  '/vip': typeof AuthenticatedVipRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/announcements': typeof AuthenticatedAnnouncementsRoute
   '/audit-log': typeof AuthenticatedAuditLogRoute
+  '/backups': typeof AuthenticatedBackupsRoute
   '/cashouts': typeof AuthenticatedCashoutsRoute
+  '/cms-games': typeof AuthenticatedCmsGamesRoute
+  '/cms-music': typeof AuthenticatedCmsMusicRoute
+  '/cms-theme': typeof AuthenticatedCmsThemeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/deposits': typeof AuthenticatedDepositsRoute
+  '/notifications': typeof AuthenticatedNotificationsRoute
   '/payment-methods': typeof AuthenticatedPaymentMethodsRoute
   '/platforms': typeof AuthenticatedPlatformsRoute
   '/players': typeof AuthenticatedPlayersRoute
+  '/promotions': typeof AuthenticatedPromotionsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/roles': typeof AuthenticatedRolesRoute
+  '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/system': typeof AuthenticatedSystemRoute
+  '/transactions': typeof AuthenticatedTransactionsRoute
+  '/vip': typeof AuthenticatedVipRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/announcements': typeof AuthenticatedAnnouncementsRoute
   '/_authenticated/audit-log': typeof AuthenticatedAuditLogRoute
+  '/_authenticated/backups': typeof AuthenticatedBackupsRoute
   '/_authenticated/cashouts': typeof AuthenticatedCashoutsRoute
+  '/_authenticated/cms-games': typeof AuthenticatedCmsGamesRoute
+  '/_authenticated/cms-music': typeof AuthenticatedCmsMusicRoute
+  '/_authenticated/cms-theme': typeof AuthenticatedCmsThemeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/deposits': typeof AuthenticatedDepositsRoute
+  '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/payment-methods': typeof AuthenticatedPaymentMethodsRoute
   '/_authenticated/platforms': typeof AuthenticatedPlatformsRoute
   '/_authenticated/players': typeof AuthenticatedPlayersRoute
+  '/_authenticated/promotions': typeof AuthenticatedPromotionsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/roles': typeof AuthenticatedRolesRoute
+  '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
+  '/_authenticated/system': typeof AuthenticatedSystemRoute
+  '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
+  '/_authenticated/vip': typeof AuthenticatedVipRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/announcements'
     | '/audit-log'
+    | '/backups'
     | '/cashouts'
+    | '/cms-games'
+    | '/cms-music'
+    | '/cms-theme'
     | '/dashboard'
     | '/deposits'
+    | '/notifications'
     | '/payment-methods'
     | '/platforms'
     | '/players'
+    | '/promotions'
     | '/reports'
     | '/roles'
+    | '/security'
     | '/settings'
     | '/staff'
+    | '/system'
+    | '/transactions'
+    | '/vip'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/announcements'
     | '/audit-log'
+    | '/backups'
     | '/cashouts'
+    | '/cms-games'
+    | '/cms-music'
+    | '/cms-theme'
     | '/dashboard'
     | '/deposits'
+    | '/notifications'
     | '/payment-methods'
     | '/platforms'
     | '/players'
+    | '/promotions'
     | '/reports'
     | '/roles'
+    | '/security'
     | '/settings'
     | '/staff'
+    | '/system'
+    | '/transactions'
+    | '/vip'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/announcements'
     | '/_authenticated/audit-log'
+    | '/_authenticated/backups'
     | '/_authenticated/cashouts'
+    | '/_authenticated/cms-games'
+    | '/_authenticated/cms-music'
+    | '/_authenticated/cms-theme'
     | '/_authenticated/dashboard'
     | '/_authenticated/deposits'
+    | '/_authenticated/notifications'
     | '/_authenticated/payment-methods'
     | '/_authenticated/platforms'
     | '/_authenticated/players'
+    | '/_authenticated/promotions'
     | '/_authenticated/reports'
     | '/_authenticated/roles'
+    | '/_authenticated/security'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
+    | '/_authenticated/system'
+    | '/_authenticated/transactions'
+    | '/_authenticated/vip'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -220,6 +355,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/vip': {
+      id: '/_authenticated/vip'
+      path: '/vip'
+      fullPath: '/vip'
+      preLoaderRoute: typeof AuthenticatedVipRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/transactions': {
+      id: '/_authenticated/transactions'
+      path: '/transactions'
+      fullPath: '/transactions'
+      preLoaderRoute: typeof AuthenticatedTransactionsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/system': {
+      id: '/_authenticated/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof AuthenticatedSystemRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/staff': {
       id: '/_authenticated/staff'
       path: '/staff'
@@ -234,6 +390,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/security': {
+      id: '/_authenticated/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof AuthenticatedSecurityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/roles': {
       id: '/_authenticated/roles'
       path: '/roles'
@@ -246,6 +409,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/promotions': {
+      id: '/_authenticated/promotions'
+      path: '/promotions'
+      fullPath: '/promotions'
+      preLoaderRoute: typeof AuthenticatedPromotionsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/players': {
@@ -269,6 +439,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPaymentMethodsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/notifications': {
+      id: '/_authenticated/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AuthenticatedNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/deposits': {
       id: '/_authenticated/deposits'
       path: '/deposits'
@@ -283,11 +460,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/cms-theme': {
+      id: '/_authenticated/cms-theme'
+      path: '/cms-theme'
+      fullPath: '/cms-theme'
+      preLoaderRoute: typeof AuthenticatedCmsThemeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cms-music': {
+      id: '/_authenticated/cms-music'
+      path: '/cms-music'
+      fullPath: '/cms-music'
+      preLoaderRoute: typeof AuthenticatedCmsMusicRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cms-games': {
+      id: '/_authenticated/cms-games'
+      path: '/cms-games'
+      fullPath: '/cms-games'
+      preLoaderRoute: typeof AuthenticatedCmsGamesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/cashouts': {
       id: '/_authenticated/cashouts'
       path: '/cashouts'
       fullPath: '/cashouts'
       preLoaderRoute: typeof AuthenticatedCashoutsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/backups': {
+      id: '/_authenticated/backups'
+      path: '/backups'
+      fullPath: '/backups'
+      preLoaderRoute: typeof AuthenticatedBackupsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/audit-log': {
@@ -297,35 +502,64 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditLogRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/announcements': {
+      id: '/_authenticated/announcements'
+      path: '/announcements'
+      fullPath: '/announcements'
+      preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAnnouncementsRoute: typeof AuthenticatedAnnouncementsRoute
   AuthenticatedAuditLogRoute: typeof AuthenticatedAuditLogRoute
+  AuthenticatedBackupsRoute: typeof AuthenticatedBackupsRoute
   AuthenticatedCashoutsRoute: typeof AuthenticatedCashoutsRoute
+  AuthenticatedCmsGamesRoute: typeof AuthenticatedCmsGamesRoute
+  AuthenticatedCmsMusicRoute: typeof AuthenticatedCmsMusicRoute
+  AuthenticatedCmsThemeRoute: typeof AuthenticatedCmsThemeRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDepositsRoute: typeof AuthenticatedDepositsRoute
+  AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedPaymentMethodsRoute: typeof AuthenticatedPaymentMethodsRoute
   AuthenticatedPlatformsRoute: typeof AuthenticatedPlatformsRoute
   AuthenticatedPlayersRoute: typeof AuthenticatedPlayersRoute
+  AuthenticatedPromotionsRoute: typeof AuthenticatedPromotionsRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedRolesRoute: typeof AuthenticatedRolesRoute
+  AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
+  AuthenticatedSystemRoute: typeof AuthenticatedSystemRoute
+  AuthenticatedTransactionsRoute: typeof AuthenticatedTransactionsRoute
+  AuthenticatedVipRoute: typeof AuthenticatedVipRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAnnouncementsRoute: AuthenticatedAnnouncementsRoute,
   AuthenticatedAuditLogRoute: AuthenticatedAuditLogRoute,
+  AuthenticatedBackupsRoute: AuthenticatedBackupsRoute,
   AuthenticatedCashoutsRoute: AuthenticatedCashoutsRoute,
+  AuthenticatedCmsGamesRoute: AuthenticatedCmsGamesRoute,
+  AuthenticatedCmsMusicRoute: AuthenticatedCmsMusicRoute,
+  AuthenticatedCmsThemeRoute: AuthenticatedCmsThemeRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDepositsRoute: AuthenticatedDepositsRoute,
+  AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedPaymentMethodsRoute: AuthenticatedPaymentMethodsRoute,
   AuthenticatedPlatformsRoute: AuthenticatedPlatformsRoute,
   AuthenticatedPlayersRoute: AuthenticatedPlayersRoute,
+  AuthenticatedPromotionsRoute: AuthenticatedPromotionsRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedRolesRoute: AuthenticatedRolesRoute,
+  AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
+  AuthenticatedSystemRoute: AuthenticatedSystemRoute,
+  AuthenticatedTransactionsRoute: AuthenticatedTransactionsRoute,
+  AuthenticatedVipRoute: AuthenticatedVipRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
