@@ -472,7 +472,7 @@ export const updatePlayerStatus = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        status: z.enum(["active", "suspended", "banned"]),
+        status: z.enum(["active", "suspended", "blocked", "pending_kyc"]),
         kyc_status: z.enum(["unverified", "pending", "verified", "rejected"]).optional(),
       })
       .parse(d),
@@ -480,7 +480,7 @@ export const updatePlayerStatus = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const patch: {
-      status: "active" | "suspended" | "banned";
+      status: "active" | "suspended" | "blocked" | "pending_kyc";
       suspended_at?: string | null;
       kyc_status?: string;
     } = { status: data.status };
