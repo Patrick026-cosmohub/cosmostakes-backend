@@ -142,11 +142,11 @@ const annInput = z.object({
   id: z.string().uuid().optional(),
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(5000),
-  starts_at: z.string().optional().nullable(),
-  ends_at: z.string().optional().nullable(),
+  starts_at: z.string().optional(),
+  ends_at: z.string().optional(),
   pinned: z.boolean().default(false),
   push_enabled: z.boolean().default(false),
-  game_id: z.string().uuid().nullable().optional(),
+  game_id: z.string().uuid().optional(),
   is_active: z.boolean().default(true),
 });
 
@@ -479,7 +479,11 @@ export const updatePlayerStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const patch: Record<string, unknown> = { status: data.status };
+    const patch: {
+      status: "active" | "suspended" | "banned";
+      suspended_at?: string | null;
+      kyc_status?: string;
+    } = { status: data.status };
     if (data.status === "suspended") patch.suspended_at = new Date().toISOString();
     if (data.status === "active") patch.suspended_at = null;
     if (data.kyc_status) patch.kyc_status = data.kyc_status;
@@ -490,7 +494,7 @@ export const updatePlayerStatus = createServerFn({ method: "POST" })
       action: "player.status_change",
       entity_type: "player",
       entity_id: data.id,
-      new_value: patch,
+      new_value: patch as unknown as Record<string, string | null>,
     });
     return { ok: true };
   });
