@@ -871,6 +871,105 @@ export const listGames = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+/** Per-platform overview: every active game plus aggregate player + financial stats. */
+export const getPlatformsOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const [{ data: games }, { data: players }, { data: ledger }, { data: pendingDeps }, { data: pendingCash }] =
+      await Promise.all([
+        supabase.from("games").select("id,name,provider,is_active").order("name"),
+        supabase.from("players").select("id,game_id,status,balance"),
+        supabase.from("wallet_ledger").select("amount,type,player:players(game_id)"),
+        supabase
+          .from("deposit_requests")
+          .select("amount,player:players(game_id)")
+          .eq("status", "pending"),
+        supabase
+          .from("cashout_requests")
+          .select("amount,player:players(game_id)")
+          .eq("status", "pending"),
+      ]);
+
+    type Stat = {
+      id: string;
+      name: string;
+      provider: string | null;
+      is_active: boolean;
+      players: number;
+      activePlayers: number;
+      balance: number;
+      in: number;
+      out: number;
+      profit: number;
+      pendingDeposits: number;
+      pendingCashouts: number;
+    };
+    const map = new Map<string, Stat>();
+    (games ?? []).forEach((g) =>
+      map.set(g.id, {
+        id: g.id,
+        name: g.name,
+        provider: g.provider,
+        is_active: g.is_active,
+        players: 0,
+        activePlayers: 0,
+        balance: 0,
+        in: 0,
+        out: 0,
+        profit: 0,
+        pendingDeposits: 0,
+        pendingCashouts: 0,
+      }),
+    );
+
+    (players ?? []).forEach((p) => {
+      if (!p.game_id) return;
+      const s = map.get(p.game_id);
+      if (!s) return;
+      s.players += 1;
+      if (p.status === "active") s.activePlayers += 1;
+      s.balance += Number(p.balance ?? 0);
+    });
+
+    (ledger ?? []).forEach((r: any) => {
+      const gid = r.player?.game_id;
+      if (!gid) return;
+      const s = map.get(gid);
+      if (!s) return;
+      const amt = Math.abs(Number(r.amount));
+      if (r.type === "deposit") s.in += amt;
+      else s.out += amt;
+    });
+
+    (pendingDeps ?? []).forEach((r: any) => {
+      const gid = r.player?.game_id;
+      if (!gid) return;
+      const s = map.get(gid);
+      if (s) s.pendingDeposits += Number(r.amount);
+    });
+    (pendingCash ?? []).forEach((r: any) => {
+      const gid = r.player?.game_id;
+      if (!gid) return;
+      const s = map.get(gid);
+      if (s) s.pendingCashouts += Number(r.amount);
+    });
+
+    const platforms = Array.from(map.values()).map((s) => ({ ...s, profit: s.in - s.out }));
+    const totals = platforms.reduce(
+      (a, p) => ({
+        platforms: a.platforms + 1,
+        players: a.players + p.players,
+        in: a.in + p.in,
+        out: a.out + p.out,
+        profit: a.profit + p.profit,
+        balance: a.balance + p.balance,
+      }),
+      { platforms: 0, players: 0, in: 0, out: 0, profit: 0, balance: 0 },
+    );
+    return { platforms, totals };
+  });
+
 /** Create a deposit/cashout request manually from the admin (testing or phone intake). */
 export const createRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
