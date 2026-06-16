@@ -42,6 +42,8 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; roles?: Ro
   { to: "/settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
 ];
 
+const ROLE_PRIORITY: Role[] = ["super_admin", "admin", "finance_agent", "support_agent"];
+
 function AuthedLayout() {
   const router = useRouter();
   const fetchMe = useServerFn(getMe);
@@ -50,7 +52,7 @@ function AuthedLayout() {
 
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const roles = (me.data?.roles ?? []) as Role[];
-  const primaryRole = (roles[0] ?? "support_agent") as Role;
+  const primaryRole = ROLE_PRIORITY.find((role) => roles.includes(role)) ?? "support_agent";
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -92,7 +94,7 @@ function AuthedLayout() {
           </div>
           <div className="leading-tight">
             <div className="text-sm font-semibold tracking-tight">Cosmo Stakes</div>
-            <div className="text-[9px] uppercase tracking-widest text-muted-foreground">Admin</div>
+            <div className="text-[9px] uppercase tracking-widest text-muted-foreground">{ROLE_LABEL[primaryRole]}</div>
           </div>
           <button className="ml-auto lg:hidden p-1 text-muted-foreground" onClick={() => setOpen(false)}>
             <X className="size-4" />
@@ -146,7 +148,7 @@ function AuthedLayout() {
           <div className="text-xs text-muted-foreground">
             <span className="text-foreground font-medium">{me.data?.profile?.full_name || "Staff"}</span>
             <span className="mx-2">·</span>
-            <span>cosmostakes.com / Admin</span>
+            <span>cosmostakes.com / {ROLE_LABEL[primaryRole]}</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-success">
             <span className="size-1.5 rounded-full bg-success" />
