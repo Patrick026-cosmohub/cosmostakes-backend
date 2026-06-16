@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          game_id: string | null
+          id: string
+          is_active: boolean
+          pinned: boolean
+          push_enabled: boolean
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          game_id?: string | null
+          id?: string
+          is_active?: boolean
+          pinned?: boolean
+          push_enabled?: boolean
+          starts_at?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          game_id?: string | null
+          id?: string
+          is_active?: boolean
+          pinned?: boolean
+          push_enabled?: boolean
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -21,7 +74,10 @@ export type Database = {
           entity_id: string | null
           entity_type: string | null
           id: string
+          ip_address: string | null
           metadata: Json | null
+          new_value: Json | null
+          prev_value: Json | null
           staff_id: string | null
         }
         Insert: {
@@ -30,7 +86,10 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
+          ip_address?: string | null
           metadata?: Json | null
+          new_value?: Json | null
+          prev_value?: Json | null
           staff_id?: string | null
         }
         Update: {
@@ -39,10 +98,108 @@ export type Database = {
           entity_id?: string | null
           entity_type?: string | null
           id?: string
+          ip_address?: string | null
           metadata?: Json | null
+          new_value?: Json | null
+          prev_value?: Json | null
           staff_id?: string | null
         }
         Relationships: []
+      }
+      bonus_claims: {
+        Row: {
+          amount: number
+          bonus_id: string
+          claimed_at: string
+          id: string
+          player_id: string
+        }
+        Insert: {
+          amount: number
+          bonus_id: string
+          claimed_at?: string
+          id?: string
+          player_id: string
+        }
+        Update: {
+          amount?: number
+          bonus_id?: string
+          claimed_at?: string
+          id?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bonus_claims_bonus_id_fkey"
+            columns: ["bonus_id"]
+            isOneToOne: false
+            referencedRelation: "bonuses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bonus_claims_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bonuses: {
+        Row: {
+          created_at: string
+          description: string | null
+          expires_at: string | null
+          game_id: string | null
+          id: string
+          is_active: boolean
+          max_bonus: number
+          min_deposit: number
+          name: string
+          percentage: number
+          starts_at: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          game_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_bonus?: number
+          min_deposit?: number
+          name: string
+          percentage?: number
+          starts_at?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          expires_at?: string | null
+          game_id?: string | null
+          id?: string
+          is_active?: boolean
+          max_bonus?: number
+          min_deposit?: number
+          name?: string
+          percentage?: number
+          starts_at?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bonuses_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cashout_requests: {
         Row: {
@@ -166,25 +323,52 @@ export type Database = {
       }
       games: {
         Row: {
+          card_style: Json
           created_at: string
+          description: string | null
+          display_title: string | null
+          featured: boolean
           id: string
           is_active: boolean
+          logo_url: string | null
+          maintenance_mode: boolean
           name: string
           provider: string
+          sort_order: number
+          sync_frequency_seconds: number
+          thumbnail_url: string | null
         }
         Insert: {
+          card_style?: Json
           created_at?: string
+          description?: string | null
+          display_title?: string | null
+          featured?: boolean
           id?: string
           is_active?: boolean
+          logo_url?: string | null
+          maintenance_mode?: boolean
           name: string
           provider: string
+          sort_order?: number
+          sync_frequency_seconds?: number
+          thumbnail_url?: string | null
         }
         Update: {
+          card_style?: Json
           created_at?: string
+          description?: string | null
+          display_title?: string | null
+          featured?: boolean
           id?: string
           is_active?: boolean
+          logo_url?: string | null
+          maintenance_mode?: boolean
           name?: string
           provider?: string
+          sort_order?: number
+          sync_frequency_seconds?: number
+          thumbnail_url?: string | null
         }
         Relationships: []
       }
@@ -226,6 +410,87 @@ export type Database = {
           support_phone?: string | null
           time_format?: string
           timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      music_settings: {
+        Row: {
+          autoplay: boolean
+          default_volume: number
+          enabled: boolean
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          autoplay?: boolean
+          default_volume?: number
+          enabled?: boolean
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          autoplay?: boolean
+          default_volume?: number
+          enabled?: boolean
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      music_tracks: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          title: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          title?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      notification_settings: {
+        Row: {
+          email_enabled: boolean
+          from_email: string | null
+          from_name: string | null
+          id: number
+          push_enabled: boolean
+          sms_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          email_enabled?: boolean
+          from_email?: string | null
+          from_name?: string | null
+          id?: number
+          push_enabled?: boolean
+          sms_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          email_enabled?: boolean
+          from_email?: string | null
+          from_name?: string | null
+          id?: number
+          push_enabled?: boolean
+          sms_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -310,6 +575,76 @@ export type Database = {
           },
         ]
       }
+      platform_sync_logs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          game_id: string
+          id: string
+          message: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          game_id: string
+          id?: string
+          message?: string | null
+          status: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          game_id?: string
+          id?: string
+          message?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_sync_logs_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_logins: {
+        Row: {
+          created_at: string
+          id: string
+          ip_address: string | null
+          player_id: string
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          player_id: string
+          success?: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          player_id?: string
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_logins_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       players: {
         Row: {
           balance: number
@@ -319,11 +654,16 @@ export type Database = {
           game_id: string | null
           game_ref_id: string | null
           id: string
+          kyc_status: string
+          last_login_at: string | null
+          login_count: number
           notes: string | null
           phone: string | null
           status: Database["public"]["Enums"]["player_status"]
+          suspended_at: string | null
           updated_at: string
           username: string
+          vip_tier_id: string | null
         }
         Insert: {
           balance?: number
@@ -333,11 +673,16 @@ export type Database = {
           game_id?: string | null
           game_ref_id?: string | null
           id?: string
+          kyc_status?: string
+          last_login_at?: string | null
+          login_count?: number
           notes?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["player_status"]
+          suspended_at?: string | null
           updated_at?: string
           username: string
+          vip_tier_id?: string | null
         }
         Update: {
           balance?: number
@@ -347,11 +692,16 @@ export type Database = {
           game_id?: string | null
           game_ref_id?: string | null
           id?: string
+          kyc_status?: string
+          last_login_at?: string | null
+          login_count?: number
           notes?: string | null
           phone?: string | null
           status?: Database["public"]["Enums"]["player_status"]
+          suspended_at?: string | null
           updated_at?: string
           username?: string
+          vip_tier_id?: string | null
         }
         Relationships: [
           {
@@ -361,7 +711,89 @@ export type Database = {
             referencedRelation: "games"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "players_vip_tier_fk"
+            columns: ["vip_tier_id"]
+            isOneToOne: false
+            referencedRelation: "vip_tiers"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      security_settings: {
+        Row: {
+          enforce_2fa_super_admin: boolean
+          id: number
+          ip_whitelist: Json
+          min_password_length: number
+          require_number: boolean
+          require_symbol: boolean
+          require_uppercase: boolean
+          session_timeout_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          enforce_2fa_super_admin?: boolean
+          id?: number
+          ip_whitelist?: Json
+          min_password_length?: number
+          require_number?: boolean
+          require_symbol?: boolean
+          require_uppercase?: boolean
+          session_timeout_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          enforce_2fa_super_admin?: boolean
+          id?: number
+          ip_whitelist?: Json
+          min_password_length?: number
+          require_number?: boolean
+          require_symbol?: boolean
+          require_uppercase?: boolean
+          session_timeout_minutes?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      site_theme: {
+        Row: {
+          accent_color: string
+          background_image: string | null
+          banner_image: string | null
+          id: number
+          logo_url: string | null
+          mode: string
+          primary_color: string
+          updated_at: string
+          updated_by: string | null
+          widgets: Json
+        }
+        Insert: {
+          accent_color?: string
+          background_image?: string | null
+          banner_image?: string | null
+          id?: number
+          logo_url?: string | null
+          mode?: string
+          primary_color?: string
+          updated_at?: string
+          updated_by?: string | null
+          widgets?: Json
+        }
+        Update: {
+          accent_color?: string
+          background_image?: string | null
+          banner_image?: string | null
+          id?: number
+          logo_url?: string | null
+          mode?: string
+          primary_color?: string
+          updated_at?: string
+          updated_by?: string | null
+          widgets?: Json
+        }
+        Relationships: []
       }
       staff_profiles: {
         Row: {
@@ -411,6 +843,54 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vip_tiers: {
+        Row: {
+          cashback_pct: number
+          color: string
+          created_at: string
+          deposit_required: number
+          icon: string | null
+          id: string
+          is_active: boolean
+          monthly_activity_required: number
+          name: string
+          perks: Json
+          priority_support: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          cashback_pct?: number
+          color?: string
+          created_at?: string
+          deposit_required?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          monthly_activity_required?: number
+          name: string
+          perks?: Json
+          priority_support?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          cashback_pct?: number
+          color?: string
+          created_at?: string
+          deposit_required?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          monthly_activity_required?: number
+          name?: string
+          perks?: Json
+          priority_support?: boolean
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
