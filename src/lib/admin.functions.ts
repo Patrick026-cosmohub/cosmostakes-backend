@@ -248,6 +248,178 @@ export const listPaymentMethodStats = createServerFn({ method: "GET" })
     return rows;
   });
 
+/**
+ * Daily / weekly / monthly financial report.
+ * - in: approved deposit volume
+ * - out: approved cashout volume (absolute)
+ * - holding: cumulative in − out as of period end (snapshot)
+ * - profit: in − out for the period
+ * Also returns per-game ranking sorted by cashout volume desc.
+ */
+export const getFinancialReports = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    // Pull all settled ledger rows (deposits/cashouts only) joined with player's game.
+    const { data: ledger, error } = await supabase
+      .from("wallet_ledger")
+      .select("amount,type,created_at,player:players(id,game_ref_id,game:games(id,name,provider))")
+      .in("type", ["deposit", "cashout"])
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+
+    type Row = {
+      amount: number;
+      type: "deposit" | "cashout";
+      created_at: string;
+      player: { game: { id: string; name: string; provider: string } | null } | null;
+    };
+    const rows = (ledger ?? []) as unknown as Row[];
+
+    const startOfDay = (d: Date) => {
+      const x = new Date(d);
+      x.setHours(0, 0, 0, 0);
+      return x;
+    };
+    const startOfWeek = (d: Date) => {
+      const x = startOfDay(d);
+      const day = x.getDay(); // Sun=0
+      x.setDate(x.getDate() - day);
+      return x;
+    };
+    const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+    type Bucket = { key: string; label: string; in: number; out: number };
+    const empty = (key: string, label: string): Bucket => ({ key, label, in: 0, out: 0 });
+
+    // Build empty buckets for last N periods so the chart/table is dense.
+    const now = new Date();
+    const days: Bucket[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i);
+      const s = startOfDay(d);
+      days.push(empty(iso(s), s.toLocaleDateString("en-US", { month: "short", day: "numeric" })));
+    }
+    const weeks: Bucket[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - i * 7);
+      const s = startOfWeek(d);
+      weeks.push(empty(iso(s), `Wk of ${s.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`));
+    }
+    const months: Bucket[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push(empty(iso(d), d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })));
+    }
+
+    const dayMap = new Map(days.map((b) => [b.key, b]));
+    const weekMap = new Map(weeks.map((b) => [b.key, b]));
+    const monthMap = new Map(months.map((b) => [b.key, b]));
+
+    // Per-game aggregation across all-time.
+    type GameRow = {
+      id: string;
+      name: string;
+      provider: string | null;
+      in: number;
+      out: number;
+      depositCount: number;
+      cashoutCount: number;
+    };
+    const games = new Map<string, GameRow>();
+    const UNGAMED = "__no_game__";
+    games.set(UNGAMED, {
+      id: UNGAMED,
+      name: "Unassigned (no game)",
+      provider: null,
+      in: 0,
+      out: 0,
+      depositCount: 0,
+      cashoutCount: 0,
+    });
+
+    let totalIn = 0;
+    let totalOut = 0;
+
+    rows.forEach((r) => {
+      const amt = Math.abs(Number(r.amount));
+      const at = new Date(r.created_at);
+      const dKey = iso(startOfDay(at));
+      const wKey = iso(startOfWeek(at));
+      const mKey = iso(startOfMonth(at));
+
+      const isDeposit = r.type === "deposit";
+      if (isDeposit) totalIn += amt;
+      else totalOut += amt;
+
+      const bumpBucket = (b: Bucket | undefined) => {
+        if (!b) return;
+        if (isDeposit) b.in += amt;
+        else b.out += amt;
+      };
+      bumpBucket(dayMap.get(dKey));
+      bumpBucket(weekMap.get(wKey));
+      bumpBucket(monthMap.get(mKey));
+
+      const game = r.player?.game;
+      const gKey = game?.id ?? UNGAMED;
+      if (!games.has(gKey)) {
+        games.set(gKey, {
+          id: gKey,
+          name: game?.name ?? "Unassigned (no game)",
+          provider: game?.provider ?? null,
+          in: 0,
+          out: 0,
+          depositCount: 0,
+          cashoutCount: 0,
+        });
+      }
+      const g = games.get(gKey)!;
+      if (isDeposit) {
+        g.in += amt;
+        g.depositCount += 1;
+      } else {
+        g.out += amt;
+        g.cashoutCount += 1;
+      }
+    });
+
+    // Add running holding to each bucket series.
+    const withHolding = (buckets: Bucket[]) => {
+      let running = 0;
+      return buckets.map((b) => {
+        running += b.in - b.out;
+        return { ...b, profit: b.in - b.out, holding: running };
+      });
+    };
+
+    const perGame = Array.from(games.values())
+      .filter((g) => g.in > 0 || g.out > 0)
+      .map((g) => ({ ...g, profit: g.in - g.out, holding: g.in - g.out }))
+      .sort((a, b) => b.out - a.out);
+
+    const today = startOfDay(now);
+    const todayKey = iso(today);
+    const todayBucket = dayMap.get(todayKey) ?? empty(todayKey, "Today");
+
+    return {
+      totals: {
+        in: totalIn,
+        out: totalOut,
+        profit: totalIn - totalOut,
+        holding: totalIn - totalOut,
+      },
+      today: { in: todayBucket.in, out: todayBucket.out, profit: todayBucket.in - todayBucket.out },
+      daily: withHolding(days),
+      weekly: withHolding(weeks),
+      monthly: withHolding(months),
+      perGame,
+    };
+  });
+
 export const createPlayer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
