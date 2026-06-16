@@ -35,18 +35,19 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthedLayout,
 });
 
-const NAV: { to: string; label: string; icon: typeof LayoutDashboard; roles?: Role[] }[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/platforms", label: "Platforms", icon: Gamepad2 },
-  { to: "/players", label: "Players", icon: Users },
-  { to: "/deposits", label: "Deposits", icon: ArrowDownToLine },
-  { to: "/cashouts", label: "Cashouts", icon: ArrowUpFromLine },
-  { to: "/payment-methods", label: "Payment Methods", icon: CreditCard },
-  { to: "/wallet-tools", label: "Wallet Tools", icon: Wallet, roles: ["super_admin", "admin", "finance_agent"] },
-  { to: "/audit-log", label: "Audit Log", icon: ScrollText },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
-  { to: "/staff", label: "Staff", icon: Shield, roles: ["super_admin"] },
-  { to: "/settings", label: "Settings", icon: Settings, roles: ["super_admin"] },
+const NAV: { to: string; label: string; icon: typeof LayoutDashboard; permission: Permission }[] = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
+  { to: "/platforms", label: "Platforms", icon: Gamepad2, permission: "platforms.view" },
+  { to: "/players", label: "Players", icon: Users, permission: "players.view" },
+  { to: "/deposits", label: "Deposits", icon: ArrowDownToLine, permission: "deposits.view" },
+  { to: "/cashouts", label: "Cashouts", icon: ArrowUpFromLine, permission: "cashouts.view" },
+  { to: "/payment-methods", label: "Payment Methods", icon: CreditCard, permission: "payment_methods.view" },
+  { to: "/wallet-tools", label: "Wallet Tools", icon: Wallet, permission: "wallet_tools.use" },
+  { to: "/audit-log", label: "Audit Log", icon: ScrollText, permission: "audit.view" },
+  { to: "/reports", label: "Reports", icon: BarChart3, permission: "reports.view" },
+  { to: "/staff", label: "Staff", icon: Shield, permission: "staff.manage" },
+  { to: "/roles", label: "Roles & Permissions", icon: Shield, permission: "roles.manage" },
+  { to: "/settings", label: "Settings", icon: Settings, permission: "settings.manage" },
 ];
 
 const ROLE_PRIORITY: Role[] = ["super_admin", "admin", "finance_agent", "support_agent"];
@@ -84,7 +85,7 @@ function AuthedLayout() {
     );
   }
 
-  const visibleNav = NAV.filter((n) => !n.roles || n.roles.some((r) => roles.includes(r)));
+  const visibleNav = NAV.filter((n) => hasPermission(roles, n.permission));
 
   return (
     <div className="min-h-screen flex bg-background nebula-glow">
