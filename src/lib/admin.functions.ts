@@ -410,15 +410,16 @@ export const createRequest = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const table = data.kind === "deposit" ? "deposit_requests" : "cashout_requests";
-    const payload: Record<string, unknown> = {
+    const base = {
       player_id: data.player_id,
       amount: data.amount,
       payment_method_id: data.payment_method_id || null,
       notes: data.notes || null,
     };
-    if (data.kind === "deposit") payload.reference = data.reference || null;
-    else payload.destination = data.destination || null;
-    const { data: row, error } = await supabase.from(table).insert(payload).select().single();
+    const { data: row, error } =
+      data.kind === "deposit"
+        ? await supabase.from("deposit_requests").insert({ ...base, reference: data.reference || null }).select().single()
+        : await supabase.from("cashout_requests").insert({ ...base, destination: data.destination || null }).select().single();
     if (error) throw new Error(error.message);
     await supabase.from("audit_logs").insert({
       staff_id: userId,
