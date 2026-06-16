@@ -1009,3 +1009,183 @@ export const createRequest = createServerFn({ method: "POST" })
     });
     return row;
   });
+
+// ====================== Settings ======================
+
+async function assertSuperAdmin(ctx: { supabase: any; userId: string }) {
+  const { data, error } = await ctx.supabase.rpc("has_role", {
+    _user_id: ctx.userId,
+    _role: "super_admin",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Forbidden: super admin only");
+}
+
+export const getGeneralSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("general_settings")
+      .select("*")
+      .eq("id", true)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  });
+
+export const updateGeneralSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        platform_name: z.string().trim().min(1).max(120),
+        company_logo_url: z.string().trim().max(500).optional().nullable(),
+        support_email: z.string().trim().email().max(255).optional().nullable().or(z.literal("")),
+        support_phone: z.string().trim().max(40).optional().nullable(),
+        timezone: z.string().trim().min(1).max(64),
+        currency: z.string().trim().min(1).max(8),
+        date_format: z.string().trim().min(1).max(32),
+        time_format: z.enum(["12h", "24h"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const payload = {
+      ...data,
+      support_email: data.support_email || null,
+      company_logo_url: data.company_logo_url || null,
+      support_phone: data.support_phone || null,
+    };
+    const { data: row, error } = await context.supabase
+      .from("general_settings")
+      .upsert({ id: true, ...payload })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    await context.supabase.from("audit_logs").insert({
+      staff_id: context.userId,
+      action: "settings.general.update",
+      entity_type: "general_settings",
+      entity_id: null,
+      metadata: { fields: Object.keys(payload) },
+    });
+    return row;
+  });
+
+export const listPlatformIntegrations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertSuperAdmin(context);
+    const { data: games, error: gErr } = await context.supabase
+      .from("games")
+      .select("id,name,provider,is_active")
+      .eq("is_active", true)
+      .order("name");
+    if (gErr) throw new Error(gErr.message);
+    const { data: integrations, error: iErr } = await context.supabase
+      .from("platform_integrations")
+      .select("*");
+    if (iErr) throw new Error(iErr.message);
+    const byGame = new Map((integrations ?? []).map((r: any) => [r.game_id, r]));
+    return (games ?? []).map((g: any) => ({
+      game: g,
+      integration: byGame.get(g.id) ?? null,
+    }));
+  });
+
+export const upsertPlatformIntegration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        game_id: z.string().uuid(),
+        api_endpoint: z.string().trim().max(500).optional().nullable(),
+        api_key: z.string().trim().max(500).optional().nullable(),
+        secret_key: z.string().trim().max(500).optional().nullable(),
+        webhook_url: z.string().trim().max(500).optional().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const payload = {
+      game_id: data.game_id,
+      api_endpoint: data.api_endpoint || null,
+      api_key: data.api_key || null,
+      secret_key: data.secret_key || null,
+      webhook_url: data.webhook_url || null,
+      connection_status:
+        data.api_endpoint && data.api_key ? "configured" : "not_configured",
+    };
+    const { data: row, error } = await context.supabase
+      .from("platform_integrations")
+      .upsert(payload, { onConflict: "game_id" })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    await context.supabase.from("audit_logs").insert({
+      staff_id: context.userId,
+      action: "settings.integration.update",
+      entity_type: "platform_integration",
+      entity_id: row.id,
+      metadata: { game_id: data.game_id },
+    });
+    return row;
+  });
+
+export const testPlatformIntegration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ game_id: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertSuperAdmin(context);
+    const { data: integ } = await context.supabase
+      .from("platform_integrations")
+      .select("*")
+      .eq("game_id", data.game_id)
+      .maybeSingle();
+
+    let status = "failed";
+    let message = "Missing API endpoint or API key.";
+    if (integ?.api_endpoint && integ?.api_key) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(integ.api_endpoint, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${integ.api_key}` },
+          signal: ctrl.signal,
+        }).catch((e) => {
+          throw e;
+        });
+        clearTimeout(t);
+        if (res.ok) {
+          status = "connected";
+          message = `OK (HTTP ${res.status})`;
+        } else {
+          status = "error";
+          message = `HTTP ${res.status}`;
+        }
+      } catch (e: any) {
+        status = "error";
+        message = e?.message ?? "Connection failed";
+      }
+    }
+
+    const now = new Date().toISOString();
+    const { data: row, error } = await context.supabase
+      .from("platform_integrations")
+      .update({
+        connection_status: status,
+        last_test_at: now,
+        last_test_message: message,
+        last_synced_at: status === "connected" ? now : integ?.last_synced_at ?? null,
+      })
+      .eq("game_id", data.game_id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return row;
+  });
