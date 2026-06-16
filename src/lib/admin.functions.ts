@@ -333,7 +333,10 @@ export const listStaff = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase } = context;
     const [{ data: profiles }, { data: roles }] = await Promise.all([
-      supabase.from("staff_profiles").select("id,email,full_name,is_active,created_at").order("created_at"),
+      supabase
+        .from("staff_profiles")
+        .select("id,email,username,full_name,is_active,created_at")
+        .order("created_at"),
       supabase.from("user_roles").select("user_id,role"),
     ]);
     const byUser = new Map<string, string[]>();
