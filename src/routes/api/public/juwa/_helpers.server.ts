@@ -23,6 +23,13 @@ export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null>
     if (!baseUrl || !agentId || !secretKey) return null;
     return { baseUrl, agentId, secretKey };
   }
+  if (platform === "gamevault") {
+    const baseUrl = process.env.GAMEVAULT_BASE_URL;
+    const agentId = process.env.GAMEVAULT_AGENT_ID;
+    const secretKey = process.env.GAMEVAULT_SECRET_KEY;
+    if (!baseUrl || !agentId || !secretKey) return null;
+    return { baseUrl, agentId, secretKey };
+  }
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("platform_credentials" as never)
