@@ -51,7 +51,8 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
         }
 
         const username = randomString(10);
-        const password = "Abcd12345";
+        // Strong random password — never use a hardcoded value (auditable, leaks via repo).
+        const password = randomString(16) + "A1!";
 
         let data: { account_name?: string; user_id?: string | number };
         try {

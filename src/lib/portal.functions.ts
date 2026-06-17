@@ -2,6 +2,23 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+type AppRole = "super_admin" | "admin" | "finance_agent" | "support_agent";
+
+async function requireRoles(
+  ctx: { supabase: any; userId: string },
+  roles: AppRole[],
+) {
+  for (const role of roles) {
+    const { data, error } = await ctx.supabase.rpc("has_role", {
+      _user_id: ctx.userId,
+      _role: role,
+    });
+    if (error) throw new Error(error.message);
+    if (data) return;
+  }
+  throw new Error(`Forbidden: requires one of ${roles.join(", ")}`);
+}
+
 /* ============ BONUSES / PROMOTIONS ============ */
 
 export const listBonuses = createServerFn({ method: "GET" })
