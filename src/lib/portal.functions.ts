@@ -50,6 +50,7 @@ export const upsertBonus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => bonusInput.parse(d))
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { supabase, userId } = context;
     const row = data.id
       ? await supabase.from("bonuses").update({ ...data, id: undefined }).eq("id", data.id).select().single()
@@ -69,6 +70,7 @@ export const deleteBonus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase.from("bonuses").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     await context.supabase.from("audit_logs").insert({
@@ -111,6 +113,7 @@ export const upsertVipTier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => vipInput.parse(d))
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { supabase, userId } = context;
     const row = data.id
       ? await supabase.from("vip_tiers").update({ ...data, id: undefined }).eq("id", data.id).select().single()
@@ -130,6 +133,7 @@ export const deleteVipTier = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase.from("vip_tiers").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     await context.supabase.from("audit_logs").insert({
@@ -171,6 +175,7 @@ export const upsertAnnouncement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => annInput.parse(d))
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { supabase, userId } = context;
     const payload = { ...data, id: undefined, created_by: userId };
     const row = data.id
@@ -191,6 +196,7 @@ export const deleteAnnouncement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase.from("announcements").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -222,6 +228,7 @@ export const updateSiteTheme = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase
       .from("site_theme")
       .update({ ...data, updated_by: context.userId, updated_at: new Date().toISOString() })
@@ -261,6 +268,7 @@ export const updateMusicSettings = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase
       .from("music_settings")
       .update({ ...data, updated_at: new Date().toISOString() })
@@ -275,6 +283,7 @@ export const addMusicTrack = createServerFn({ method: "POST" })
     z.object({ title: z.string().min(1).max(200), url: z.string().url() }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase.from("music_tracks").insert(data);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -284,6 +293,7 @@ export const deleteMusicTrack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase.from("music_tracks").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -313,6 +323,7 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase
       .from("notification_settings")
       .update({ ...data, from_email: data.from_email || null, updated_at: new Date().toISOString() })
@@ -347,6 +358,7 @@ export const updateSecuritySettings = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin"]);
     const { error } = await context.supabase
       .from("security_settings")
       .update({ ...data, updated_at: new Date().toISOString() })
@@ -460,6 +472,7 @@ export const exportTableCsv = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ table: z.enum(exportable) }).parse(d))
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin"]);
     const { data: rows, error } = await context.supabase.from(data.table).select("*").limit(50000);
     if (error) throw new Error(error.message);
     const records = (rows ?? []) as Record<string, unknown>[];
@@ -495,6 +508,7 @@ export const updatePlayerStatus = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin", "support_agent"]);
     const { supabase, userId } = context;
     const patch: {
       status: "active" | "suspended" | "blocked" | "pending_kyc";
@@ -537,6 +551,7 @@ export const updateGame = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin", "admin"]);
     const { id, ...patch } = data;
     const { error } = await context.supabase.from("games").update(patch).eq("id", id);
     if (error) throw new Error(error.message);
