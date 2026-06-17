@@ -74,7 +74,7 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             juwa_user_id: juwaUserId,
             juwa_username: data.account_name ?? username,
             juwa_password: password,
-          });
+          } as never);
         if (insertErr) return jsonError(500, insertErr.message);
 
         return jsonOk({

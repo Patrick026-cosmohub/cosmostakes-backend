@@ -34,6 +34,7 @@ import { Route as AuthenticatedCashoutsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedBackupsRouteImport } from './routes/_authenticated/backups'
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
+import { Route as ApiPublicJuwaCreatePlayerRouteImport } from './routes/api/public/juwa/create-player'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -163,6 +164,12 @@ const AuthenticatedAnnouncementsRoute =
     path: '/announcements',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicJuwaCreatePlayerRoute =
+  ApiPublicJuwaCreatePlayerRouteImport.update({
+    id: '/api/public/juwa/create-player',
+    path: '/api/public/juwa/create-player',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -189,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -215,6 +223,7 @@ export interface FileRoutesByTo {
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -243,6 +252,7 @@ export interface FileRoutesById {
   '/_authenticated/system': typeof AuthenticatedSystemRoute
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/transactions'
     | '/vip'
+    | '/api/public/juwa/create-player'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/transactions'
     | '/vip'
+    | '/api/public/juwa/create-player'
   id:
     | '__root__'
     | '/'
@@ -324,12 +336,14 @@ export interface FileRouteTypes {
     | '/_authenticated/system'
     | '/_authenticated/transactions'
     | '/_authenticated/vip'
+    | '/api/public/juwa/create-player'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicJuwaCreatePlayerRoute: typeof ApiPublicJuwaCreatePlayerRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -509,6 +523,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/juwa/create-player': {
+      id: '/api/public/juwa/create-player'
+      path: '/api/public/juwa/create-player'
+      fullPath: '/api/public/juwa/create-player'
+      preLoaderRoute: typeof ApiPublicJuwaCreatePlayerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -569,6 +590,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicJuwaCreatePlayerRoute: ApiPublicJuwaCreatePlayerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
