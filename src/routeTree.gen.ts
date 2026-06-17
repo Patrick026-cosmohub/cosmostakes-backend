@@ -37,6 +37,7 @@ import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authen
 import { Route as ApiPublicJuwaWithdrawRouteImport } from './routes/api/public/juwa/withdraw'
 import { Route as ApiPublicJuwaRechargeRouteImport } from './routes/api/public/juwa/recharge'
 import { Route as ApiPublicJuwaCreatePlayerRouteImport } from './routes/api/public/juwa/create-player'
+import { Route as ApiPublicJuwaBalanceRouteImport } from './routes/api/public/juwa/balance'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -182,6 +183,11 @@ const ApiPublicJuwaCreatePlayerRoute =
     path: '/api/public/juwa/create-player',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicJuwaBalanceRoute = ApiPublicJuwaBalanceRouteImport.update({
+  id: '/api/public/juwa/balance',
+  path: '/api/public/juwa/balance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
@@ -237,6 +244,7 @@ export interface FileRoutesByTo {
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/_authenticated/system': typeof AuthenticatedSystemRoute
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/transactions'
     | '/vip'
+    | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/withdraw'
@@ -328,6 +338,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/transactions'
     | '/vip'
+    | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/withdraw'
@@ -358,6 +369,7 @@ export interface FileRouteTypes {
     | '/_authenticated/system'
     | '/_authenticated/transactions'
     | '/_authenticated/vip'
+    | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/withdraw'
@@ -367,6 +379,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicJuwaBalanceRoute: typeof ApiPublicJuwaBalanceRoute
   ApiPublicJuwaCreatePlayerRoute: typeof ApiPublicJuwaCreatePlayerRoute
   ApiPublicJuwaRechargeRoute: typeof ApiPublicJuwaRechargeRoute
   ApiPublicJuwaWithdrawRoute: typeof ApiPublicJuwaWithdrawRoute
@@ -570,6 +583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicJuwaCreatePlayerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/juwa/balance': {
+      id: '/api/public/juwa/balance'
+      path: '/api/public/juwa/balance'
+      fullPath: '/api/public/juwa/balance'
+      preLoaderRoute: typeof ApiPublicJuwaBalanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -630,6 +650,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicJuwaBalanceRoute: ApiPublicJuwaBalanceRoute,
   ApiPublicJuwaCreatePlayerRoute: ApiPublicJuwaCreatePlayerRoute,
   ApiPublicJuwaRechargeRoute: ApiPublicJuwaRechargeRoute,
   ApiPublicJuwaWithdrawRoute: ApiPublicJuwaWithdrawRoute,
