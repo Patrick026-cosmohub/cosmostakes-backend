@@ -34,6 +34,7 @@ import { Route as AuthenticatedCashoutsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedBackupsRouteImport } from './routes/_authenticated/backups'
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
+import { Route as ApiPublicJuwaWithdrawRouteImport } from './routes/api/public/juwa/withdraw'
 import { Route as ApiPublicJuwaRechargeRouteImport } from './routes/api/public/juwa/recharge'
 import { Route as ApiPublicJuwaCreatePlayerRouteImport } from './routes/api/public/juwa/create-player'
 
@@ -165,6 +166,11 @@ const AuthenticatedAnnouncementsRoute =
     path: '/announcements',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicJuwaWithdrawRoute = ApiPublicJuwaWithdrawRouteImport.update({
+  id: '/api/public/juwa/withdraw',
+  path: '/api/public/juwa/withdraw',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicJuwaRechargeRoute = ApiPublicJuwaRechargeRouteImport.update({
   id: '/api/public/juwa/recharge',
   path: '/api/public/juwa/recharge',
@@ -204,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/vip': typeof AuthenticatedVipRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -232,6 +239,7 @@ export interface FileRoutesByTo {
   '/vip': typeof AuthenticatedVipRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/_authenticated/vip': typeof AuthenticatedVipRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -292,6 +301,7 @@ export interface FileRouteTypes {
     | '/vip'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
+    | '/api/public/juwa/withdraw'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
     | '/vip'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
+    | '/api/public/juwa/withdraw'
   id:
     | '__root__'
     | '/'
@@ -349,6 +360,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vip'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
+    | '/api/public/juwa/withdraw'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -357,6 +369,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ApiPublicJuwaCreatePlayerRoute: typeof ApiPublicJuwaCreatePlayerRoute
   ApiPublicJuwaRechargeRoute: typeof ApiPublicJuwaRechargeRoute
+  ApiPublicJuwaWithdrawRoute: typeof ApiPublicJuwaWithdrawRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -536,6 +549,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/juwa/withdraw': {
+      id: '/api/public/juwa/withdraw'
+      path: '/api/public/juwa/withdraw'
+      fullPath: '/api/public/juwa/withdraw'
+      preLoaderRoute: typeof ApiPublicJuwaWithdrawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/juwa/recharge': {
       id: '/api/public/juwa/recharge'
       path: '/api/public/juwa/recharge'
@@ -612,6 +632,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ApiPublicJuwaCreatePlayerRoute: ApiPublicJuwaCreatePlayerRoute,
   ApiPublicJuwaRechargeRoute: ApiPublicJuwaRechargeRoute,
+  ApiPublicJuwaWithdrawRoute: ApiPublicJuwaWithdrawRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
