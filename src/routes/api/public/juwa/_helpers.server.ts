@@ -43,7 +43,7 @@ export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null>
     .eq("platform", platform)
     .maybeSingle();
   if (error || !data) return null;
-  const row = data as { base_url: string; agent_id: string; secret_key: string Campaign };
+  const row = data as { base_url: string; agent_id: string; secret_key: string };
   return { baseUrl: row.base_url, agentId: row.agent_id, secretKey: row.secret_key };
 }
 
