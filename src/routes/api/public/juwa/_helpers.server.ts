@@ -16,6 +16,13 @@ export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null>
     if (!baseUrl || !agentId || !secretKey) return null;
     return { baseUrl, agentId, secretKey };
   }
+  if (platform === "juwa2") {
+    const baseUrl = process.env.JUWA2_BASE_URL;
+    const agentId = process.env.JUWA2_AGENT_ID;
+    const secretKey = process.env.JUWA2_SECRET_KEY;
+    if (!baseUrl || !agentId || !secretKey) return null;
+    return { baseUrl, agentId, secretKey };
+  }
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("platform_credentials" as never)
