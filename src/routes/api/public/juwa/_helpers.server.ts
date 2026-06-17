@@ -1,0 +1,103 @@
+import { createHash } from "node:crypto";
+
+export type PlatformKey = "juwa" | "juwa2" | "gamevault";
+
+export type JuwaCreds = {
+  baseUrl: string;
+  agentId: string;
+  secretKey: string;
+};
+
+export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null> {
+  if (platform === "juwa") {
+    const baseUrl = process.env.JUWA_BASE_URL;
+    const agentId = process.env.JUWA_AGENT_ID;
+    const secretKey = process.env.JUWA_SECRET_KEY;
+    if (!baseUrl || !agentId || !secretKey) return null;
+    return { baseUrl, agentId, secretKey };
+  }
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("platform_credentials" as never)
+    .select("base_url, agent_id, secret_key")
+    .eq("platform", platform)
+    .maybeSingle();
+  if (error || !data) return null;
+  const row = data as { base_url: string; agent_id: string; secret_key: string };
+  return { baseUrl: row.base_url, agentId: row.agent_id, secretKey: row.secret_key };
+}
+
+export function checkApiKey(request: Request): Response | null {
+  const provided = request.headers.get("x-api-key");
+  const expected = process.env.COSMO_ADMIN_API_KEY;
+  if (!expected || !provided || provided !== expected) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  return null;
+}
+
+export function jsonError(status: number, message: string, extra?: Record<string, unknown>): Response {
+  return new Response(JSON.stringify({ error: message, ...extra }), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+export function jsonOk(data: unknown): Response {
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+export async function juwaCall<T = Record<string, unknown>>(
+  creds: JuwaCreds,
+  path: string,
+  fields: Record<string, string | number>,
+): Promise<T> {
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const token = createHash("md5")
+    .update(`${creds.agentId}:${timestamp}:${creds.secretKey}`)
+    .digest("hex");
+
+  const form = new FormData();
+  form.append("agent_id", creds.agentId);
+  form.append("timestamp", timestamp);
+  form.append("token", token);
+  for (const [k, v] of Object.entries(fields)) {
+    form.append(k, String(v));
+  }
+
+  const url = creds.baseUrl.replace(/\/$/, "") + path;
+  const res = await fetch(url, { method: "POST", body: form });
+  const text = await res.text();
+  let body: { code?: number; msg?: string; data?: T };
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new Error(`Juwa non-JSON response (${res.status}): ${text.slice(0, 200)}`);
+  }
+  if (body.code !== 0) {
+    const err = new Error(`Juwa error code=${body.code} msg=${body.msg ?? ""}`);
+    (err as Error & { code?: number; msg?: string }).code = body.code;
+    (err as Error & { code?: number; msg?: string }).msg = body.msg;
+    throw err;
+  }
+  return (body.data ?? ({} as T)) as T;
+}
+
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+export function randomString(len: number): string {
+  let s = "";
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  for (let i = 0; i < len; i++) s += ALPHABET[arr[i] % ALPHABET.length];
+  return s;
+}
+
+export function randomOrderId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${randomString(8)}`;
+}

@@ -522,6 +522,33 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_credentials: {
+        Row: {
+          agent_id: string
+          base_url: string
+          created_at: string
+          platform: string
+          secret_key: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          base_url: string
+          created_at?: string
+          platform: string
+          secret_key: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          base_url?: string
+          created_at?: string
+          platform?: string
+          secret_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       platform_integrations: {
         Row: {
           api_endpoint: string | null
@@ -575,6 +602,36 @@ export type Database = {
           },
         ]
       }
+      platform_players: {
+        Row: {
+          created_at: string
+          id: string
+          juwa_password: string
+          juwa_user_id: string
+          juwa_username: string
+          platform: string
+          site_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          juwa_password: string
+          juwa_user_id: string
+          juwa_username: string
+          platform: string
+          site_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          juwa_password?: string
+          juwa_user_id?: string
+          juwa_username?: string
+          platform?: string
+          site_user_id?: string
+        }
+        Relationships: []
+      }
       platform_sync_logs: {
         Row: {
           created_at: string
@@ -609,6 +666,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          error: string | null
+          id: string
+          juwa_transaction_id: string | null
+          order_id: string
+          platform: string
+          site_user_id: string
+          status: string
+          type: string
+          user_balance: number | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          juwa_transaction_id?: string | null
+          order_id: string
+          platform: string
+          site_user_id: string
+          status?: string
+          type: string
+          user_balance?: number | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          juwa_transaction_id?: string | null
+          order_id?: string
+          platform?: string
+          site_user_id?: string
+          status?: string
+          type?: string
+          user_balance?: number | null
+        }
+        Relationships: []
       }
       player_logins: {
         Row: {

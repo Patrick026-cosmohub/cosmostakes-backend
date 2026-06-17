@@ -34,6 +34,11 @@ import { Route as AuthenticatedCashoutsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedBackupsRouteImport } from './routes/_authenticated/backups'
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
+import { Route as ApiPublicJuwaWithdrawRouteImport } from './routes/api/public/juwa/withdraw'
+import { Route as ApiPublicJuwaResetPasswordRouteImport } from './routes/api/public/juwa/reset-password'
+import { Route as ApiPublicJuwaRechargeRouteImport } from './routes/api/public/juwa/recharge'
+import { Route as ApiPublicJuwaCreatePlayerRouteImport } from './routes/api/public/juwa/create-player'
+import { Route as ApiPublicJuwaBalanceRouteImport } from './routes/api/public/juwa/balance'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -163,6 +168,33 @@ const AuthenticatedAnnouncementsRoute =
     path: '/announcements',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicJuwaWithdrawRoute = ApiPublicJuwaWithdrawRouteImport.update({
+  id: '/api/public/juwa/withdraw',
+  path: '/api/public/juwa/withdraw',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicJuwaResetPasswordRoute =
+  ApiPublicJuwaResetPasswordRouteImport.update({
+    id: '/api/public/juwa/reset-password',
+    path: '/api/public/juwa/reset-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicJuwaRechargeRoute = ApiPublicJuwaRechargeRouteImport.update({
+  id: '/api/public/juwa/recharge',
+  path: '/api/public/juwa/recharge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicJuwaCreatePlayerRoute =
+  ApiPublicJuwaCreatePlayerRouteImport.update({
+    id: '/api/public/juwa/create-player',
+    path: '/api/public/juwa/create-player',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicJuwaBalanceRoute = ApiPublicJuwaBalanceRouteImport.update({
+  id: '/api/public/juwa/balance',
+  path: '/api/public/juwa/balance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -189,6 +221,11 @@ export interface FileRoutesByFullPath {
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
+  '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
+  '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
+  '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -215,6 +252,11 @@ export interface FileRoutesByTo {
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
+  '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
+  '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
+  '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -243,6 +285,11 @@ export interface FileRoutesById {
   '/_authenticated/system': typeof AuthenticatedSystemRoute
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/vip': typeof AuthenticatedVipRoute
+  '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
+  '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
+  '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
+  '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -271,6 +318,11 @@ export interface FileRouteTypes {
     | '/system'
     | '/transactions'
     | '/vip'
+    | '/api/public/juwa/balance'
+    | '/api/public/juwa/create-player'
+    | '/api/public/juwa/recharge'
+    | '/api/public/juwa/reset-password'
+    | '/api/public/juwa/withdraw'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -297,6 +349,11 @@ export interface FileRouteTypes {
     | '/system'
     | '/transactions'
     | '/vip'
+    | '/api/public/juwa/balance'
+    | '/api/public/juwa/create-player'
+    | '/api/public/juwa/recharge'
+    | '/api/public/juwa/reset-password'
+    | '/api/public/juwa/withdraw'
   id:
     | '__root__'
     | '/'
@@ -324,12 +381,22 @@ export interface FileRouteTypes {
     | '/_authenticated/system'
     | '/_authenticated/transactions'
     | '/_authenticated/vip'
+    | '/api/public/juwa/balance'
+    | '/api/public/juwa/create-player'
+    | '/api/public/juwa/recharge'
+    | '/api/public/juwa/reset-password'
+    | '/api/public/juwa/withdraw'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicJuwaBalanceRoute: typeof ApiPublicJuwaBalanceRoute
+  ApiPublicJuwaCreatePlayerRoute: typeof ApiPublicJuwaCreatePlayerRoute
+  ApiPublicJuwaRechargeRoute: typeof ApiPublicJuwaRechargeRoute
+  ApiPublicJuwaResetPasswordRoute: typeof ApiPublicJuwaResetPasswordRoute
+  ApiPublicJuwaWithdrawRoute: typeof ApiPublicJuwaWithdrawRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -509,6 +576,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnnouncementsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/juwa/withdraw': {
+      id: '/api/public/juwa/withdraw'
+      path: '/api/public/juwa/withdraw'
+      fullPath: '/api/public/juwa/withdraw'
+      preLoaderRoute: typeof ApiPublicJuwaWithdrawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/juwa/reset-password': {
+      id: '/api/public/juwa/reset-password'
+      path: '/api/public/juwa/reset-password'
+      fullPath: '/api/public/juwa/reset-password'
+      preLoaderRoute: typeof ApiPublicJuwaResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/juwa/recharge': {
+      id: '/api/public/juwa/recharge'
+      path: '/api/public/juwa/recharge'
+      fullPath: '/api/public/juwa/recharge'
+      preLoaderRoute: typeof ApiPublicJuwaRechargeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/juwa/create-player': {
+      id: '/api/public/juwa/create-player'
+      path: '/api/public/juwa/create-player'
+      fullPath: '/api/public/juwa/create-player'
+      preLoaderRoute: typeof ApiPublicJuwaCreatePlayerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/juwa/balance': {
+      id: '/api/public/juwa/balance'
+      path: '/api/public/juwa/balance'
+      fullPath: '/api/public/juwa/balance'
+      preLoaderRoute: typeof ApiPublicJuwaBalanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -569,17 +671,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicJuwaBalanceRoute: ApiPublicJuwaBalanceRoute,
+  ApiPublicJuwaCreatePlayerRoute: ApiPublicJuwaCreatePlayerRoute,
+  ApiPublicJuwaRechargeRoute: ApiPublicJuwaRechargeRoute,
+  ApiPublicJuwaResetPasswordRoute: ApiPublicJuwaResetPasswordRoute,
+  ApiPublicJuwaWithdrawRoute: ApiPublicJuwaWithdrawRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
