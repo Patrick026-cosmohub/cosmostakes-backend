@@ -1,5 +1,11 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
+export const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization",
+};
+
 export type PlatformKey = "juwa" | "juwa2" | "gamevault";
 
 export type JuwaCreds = {
@@ -37,12 +43,17 @@ export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null>
     .eq("platform", platform)
     .maybeSingle();
   if (error || !data) return null;
-  const row = data as { base_url: string; agent_id: string; secret_key: string };
+  const row = data as { base_url: string; agent_id: string; secret_key: string Campaign };
   return { baseUrl: row.base_url, agentId: row.agent_id, secretKey: row.secret_key };
 }
 
 export function checkApiKey(request: Request): Response | null {
-  const provided = request.headers.get("x-api-key");
+  let provided = request.headers.get("x-api-key");
+  if (!provided) {
+    const auth = request.headers.get("Authorization") ?? "";
+    const match = auth.match(/^Bearer\s+(.+)$/i);
+    if (match) provided = match[1];
+  }
   const expected = process.env.COSMO_ADMIN_API_KEY;
   let ok = false;
   if (expected && provided) {
@@ -53,7 +64,7 @@ export function checkApiKey(request: Request): Response | null {
   if (!ok) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...CORS_HEADERS },
     });
   }
   return null;
@@ -62,14 +73,14 @@ export function checkApiKey(request: Request): Response | null {
 export function jsonError(status: number, message: string, extra?: Record<string, unknown>): Response {
   return new Response(JSON.stringify({ error: message, ...extra }), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...CORS_HEADERS },
   });
 }
 
 export function jsonOk(data: unknown): Response {
   return new Response(JSON.stringify(data), {
     status: 200,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...CORS_HEADERS },
   });
 }
 
