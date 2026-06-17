@@ -35,6 +35,7 @@ import { Route as AuthenticatedBackupsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as ApiPublicJuwaWithdrawRouteImport } from './routes/api/public/juwa/withdraw'
+import { Route as ApiPublicJuwaResetPasswordRouteImport } from './routes/api/public/juwa/reset-password'
 import { Route as ApiPublicJuwaRechargeRouteImport } from './routes/api/public/juwa/recharge'
 import { Route as ApiPublicJuwaCreatePlayerRouteImport } from './routes/api/public/juwa/create-player'
 import { Route as ApiPublicJuwaBalanceRouteImport } from './routes/api/public/juwa/balance'
@@ -172,6 +173,12 @@ const ApiPublicJuwaWithdrawRoute = ApiPublicJuwaWithdrawRouteImport.update({
   path: '/api/public/juwa/withdraw',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicJuwaResetPasswordRoute =
+  ApiPublicJuwaResetPasswordRouteImport.update({
+    id: '/api/public/juwa/reset-password',
+    path: '/api/public/juwa/reset-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicJuwaRechargeRoute = ApiPublicJuwaRechargeRouteImport.update({
   id: '/api/public/juwa/recharge',
   path: '/api/public/juwa/recharge',
@@ -217,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRoutesByTo {
@@ -247,6 +255,7 @@ export interface FileRoutesByTo {
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRoutesById {
@@ -279,6 +288,7 @@ export interface FileRoutesById {
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
+  '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
 }
 export interface FileRouteTypes {
@@ -311,6 +321,7 @@ export interface FileRouteTypes {
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
+    | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
+    | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
   id:
     | '__root__'
@@ -372,6 +384,7 @@ export interface FileRouteTypes {
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
+    | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
   fileRoutesById: FileRoutesById
 }
@@ -382,6 +395,7 @@ export interface RootRouteChildren {
   ApiPublicJuwaBalanceRoute: typeof ApiPublicJuwaBalanceRoute
   ApiPublicJuwaCreatePlayerRoute: typeof ApiPublicJuwaCreatePlayerRoute
   ApiPublicJuwaRechargeRoute: typeof ApiPublicJuwaRechargeRoute
+  ApiPublicJuwaResetPasswordRoute: typeof ApiPublicJuwaResetPasswordRoute
   ApiPublicJuwaWithdrawRoute: typeof ApiPublicJuwaWithdrawRoute
 }
 
@@ -569,6 +583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicJuwaWithdrawRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/juwa/reset-password': {
+      id: '/api/public/juwa/reset-password'
+      path: '/api/public/juwa/reset-password'
+      fullPath: '/api/public/juwa/reset-password'
+      preLoaderRoute: typeof ApiPublicJuwaResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/juwa/recharge': {
       id: '/api/public/juwa/recharge'
       path: '/api/public/juwa/recharge'
@@ -653,6 +674,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicJuwaBalanceRoute: ApiPublicJuwaBalanceRoute,
   ApiPublicJuwaCreatePlayerRoute: ApiPublicJuwaCreatePlayerRoute,
   ApiPublicJuwaRechargeRoute: ApiPublicJuwaRechargeRoute,
+  ApiPublicJuwaResetPasswordRoute: ApiPublicJuwaResetPasswordRoute,
   ApiPublicJuwaWithdrawRoute: ApiPublicJuwaWithdrawRoute,
 }
 export const routeTree = rootRouteImport
