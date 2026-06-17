@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 export type PlatformKey = "juwa" | "juwa2" | "gamevault";
 
@@ -44,7 +44,13 @@ export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null>
 export function checkApiKey(request: Request): Response | null {
   const provided = request.headers.get("x-api-key");
   const expected = process.env.COSMO_ADMIN_API_KEY;
-  if (!expected || !provided || provided !== expected) {
+  let ok = false;
+  if (expected && provided) {
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length === b.length) ok = timingSafeEqual(a, b);
+  }
+  if (!ok) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "content-type": "application/json" },
