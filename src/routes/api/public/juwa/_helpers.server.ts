@@ -16,23 +16,23 @@ export type JuwaCreds = {
 
 export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null> {
   if (platform === "juwa") {
-    const baseUrl = process.env.JUWA_BASE_URL;
-    const agentId = process.env.JUWA_AGENT_ID;
-    const secretKey = process.env.JUWA_SECRET_KEY;
+    const baseUrl = (process.env.JUWA_BASE_URL ?? process.env.JUWA_API_URL)?.trim();
+    const agentId = process.env.JUWA_AGENT_ID?.trim();
+    const secretKey = process.env.JUWA_SECRET_KEY?.trim();
     if (!baseUrl || !agentId || !secretKey) return null;
     return { baseUrl, agentId, secretKey };
   }
   if (platform === "juwa2") {
-    const baseUrl = process.env.JUWA2_BASE_URL;
-    const agentId = process.env.JUWA2_AGENT_ID;
-    const secretKey = process.env.JUWA2_SECRET_KEY;
+    const baseUrl = (process.env.JUWA2_BASE_URL ?? process.env.JUWA2_API_URL)?.trim();
+    const agentId = process.env.JUWA2_AGENT_ID?.trim();
+    const secretKey = process.env.JUWA2_SECRET_KEY?.trim();
     if (!baseUrl || !agentId || !secretKey) return null;
     return { baseUrl, agentId, secretKey };
   }
   if (platform === "gamevault") {
-    const baseUrl = process.env.GAMEVAULT_BASE_URL;
-    const agentId = process.env.GAMEVAULT_AGENT_ID;
-    const secretKey = process.env.GAMEVAULT_SECRET_KEY;
+    const baseUrl = (process.env.GAMEVAULT_BASE_URL ?? process.env.GAMEVAULT_API_URL)?.trim();
+    const agentId = process.env.GAMEVAULT_AGENT_ID?.trim();
+    const secretKey = process.env.GAMEVAULT_SECRET_KEY?.trim();
     if (!baseUrl || !agentId || !secretKey) return null;
     return { baseUrl, agentId, secretKey };
   }
@@ -103,15 +103,16 @@ export async function juwaCall<T = Record<string, unknown>>(
   }
 
   const url = creds.baseUrl.replace(/\/$/, "") + path;
-  console.log("[juwa] →", url, {
+  const sentFields = {
     agent_id: creds.agentId,
     timestamp,
-    token: "***",
-    ...fields,
-  });
+    token,
+    ...Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, String(v)])),
+  };
+  console.log("[juwa] →", url, sentFields);
   const res = await fetch(url, { method: "POST", body: form });
   const text = await res.text();
-  console.log("[juwa] ←", res.status, text.slice(0, 500));
+  console.log("[juwa] ←", res.status, text);
   let body: { code?: number; msg?: string; data?: T };
   try {
     body = JSON.parse(text);
