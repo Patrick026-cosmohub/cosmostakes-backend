@@ -22,6 +22,10 @@ function generateJuwaUsername(): string {
 const schema = z.object({
   platform: z.enum(["juwa", "juwa2", "gamevault"]),
   playerSiteUserId: z.string().uuid(),
+  username: z.string().optional(),
+  password: z.string().optional(),
+  account: z.string().optional(),
+  login_pwd: z.string().optional(),
 });
 
 export const Route = createFileRoute("/api/public/juwa/create-player")({
@@ -60,9 +64,9 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           });
         }
 
-        // Juwa rule: must start with English letter. 8 lowercase letters + 2 digits.
-        const username = generateJuwaUsername();
-        const password = "Abcdef12345";
+        // Juwa rule: must start with English letter. Prefer caller-provided account.
+        const username = parsed.account ?? parsed.username ?? generateJuwaUsername();
+        const password = parsed.login_pwd ?? parsed.password ?? "Abcdef12345";
 
         let data: { account_name?: string; user_id?: string | number };
         try {
