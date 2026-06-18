@@ -6,7 +6,7 @@ import {
   jsonError,
   jsonOk,
   juwaCall,
-  randomString,
+  randomAlnum,
 } from "./_helpers.server";
 
 const schema = z.object({
@@ -50,9 +50,10 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           });
         }
 
-        const username = randomString(10);
-        // Strong random password — never use a hardcoded value (auditable, leaks via repo).
-        const password = randomString(16) + "A1!";
+        // Juwa account rules: letters/numbers/underscore, 4–20 chars.
+        const username = "cs_" + randomAlnum(8);
+        // Juwa password rules: 6–32 chars. Use 10 alphanumeric.
+        const password = randomAlnum(10);
 
         let data: { account_name?: string; user_id?: string | number };
         try {
