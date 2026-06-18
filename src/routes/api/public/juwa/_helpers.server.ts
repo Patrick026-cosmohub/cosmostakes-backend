@@ -103,16 +103,19 @@ export async function juwaCall<T = Record<string, unknown>>(
   }
 
   const url = creds.baseUrl.replace(/\/$/, "") + path;
-  const sentFields = {
-    agent_id: creds.agentId,
-    timestamp,
-    token,
-    ...Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, String(v)])),
-  };
-  console.error("[juwa] →", url, JSON.stringify(sentFields));
+  const sentFields = Object.fromEntries(form.entries());
+  if (path === "/api/external/addUser") {
+    console.log("[juwa addUser] outgoing form:", sentFields);
+  } else {
+    console.error("[juwa] →", url, JSON.stringify(sentFields));
+  }
   const res = await fetch(url, { method: "POST", body: form });
   const text = await res.text();
-  console.error("[juwa] ←", res.status, text);
+  if (path === "/api/external/addUser") {
+    console.log("[juwa addUser] raw response:", res.status, text);
+  } else {
+    console.error("[juwa] ←", res.status, text);
+  }
   let body: { code?: number; msg?: string; data?: T };
   try {
     body = JSON.parse(text);
