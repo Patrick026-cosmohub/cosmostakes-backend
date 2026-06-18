@@ -19,6 +19,22 @@ function generateJuwaUsername(): string {
   return username;
 }
 
+function generateJuwaPassword(): string {
+  const letters = "abcdefghijklmnopqrstuvwxyz";
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const digits = "0123456789";
+  const all = letters + upper + digits;
+  const rand = new Uint32Array(10);
+  crypto.getRandomValues(rand);
+  let pwd = upper[rand[0] % upper.length] + letters[rand[1] % letters.length];
+  for (let i = 2; i < 8; i++) pwd += all[rand[i] % all.length];
+  pwd += digits[rand[8] % digits.length] + digits[rand[9] % digits.length];
+  return pwd;
+}
+
+// Juwa account rule: starts with letter, 6-12 alphanumeric chars.
+const JUWA_ACCOUNT_RE = /^[a-zA-Z][a-zA-Z0-9]{5,11}$/;
+
 const schema = z.object({
   platform: z.enum(["juwa", "juwa2", "gamevault"]),
   playerSiteUserId: z.string().uuid(),
@@ -64,9 +80,18 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           });
         }
 
-        // Juwa rule: must start with English letter. Prefer caller-provided account.
-        const username = parsed.account ?? parsed.username ?? generateJuwaUsername();
-        const password = parsed.login_pwd ?? parsed.password ?? "Abcdef12345";
+        // Juwa rule: must start with English letter, alphanumeric.
+        // Only honor caller-provided values when they pass the format check;
+        // otherwise generate server-side so the Juwa call never fails on bad input.
+        const callerAccount = parsed.account ?? parsed.username;
+        const callerPwd = parsed.login_pwd ?? parsed.password;
+        const username = callerAccount && JUWA_ACCOUNT_RE.test(callerAccount)
+          ? callerAccount
+          : generateJuwaUsername();
+        const password = callerPwd && callerPwd.length >= 6 && callerPwd.length <= 20
+          ? callerPwd
+          : generateJuwaPassword();
+        console.log("[juwa create-player] using", { username, passwordLen: password.length, callerProvidedAccount: !!callerAccount, callerProvidedPwd: !!callerPwd });
 
         let data: { account_name?: string; user_id?: string | number };
         try {
