@@ -414,6 +414,45 @@ export type Database = {
         }
         Relationships: []
       }
+      juwa_debug_log: {
+        Row: {
+          created_at: string
+          endpoint: string | null
+          error_message: string | null
+          id: string
+          juwa_code: number | null
+          juwa_msg: string | null
+          platform: string | null
+          response_body: string | null
+          response_status: number | null
+          sent_fields: Json | null
+        }
+        Insert: {
+          created_at?: string
+          endpoint?: string | null
+          error_message?: string | null
+          id?: string
+          juwa_code?: number | null
+          juwa_msg?: string | null
+          platform?: string | null
+          response_body?: string | null
+          response_status?: number | null
+          sent_fields?: Json | null
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string | null
+          error_message?: string | null
+          id?: string
+          juwa_code?: number | null
+          juwa_msg?: string | null
+          platform?: string | null
+          response_body?: string | null
+          response_status?: number | null
+          sent_fields?: Json | null
+        }
+        Relationships: []
+      }
       music_settings: {
         Row: {
           autoplay: boolean
