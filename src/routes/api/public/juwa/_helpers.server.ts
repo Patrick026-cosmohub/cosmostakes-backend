@@ -109,10 +109,10 @@ export async function juwaCall<T = Record<string, unknown>>(
     token,
     ...Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, String(v)])),
   };
-  console.log("[juwa] →", url, sentFields);
+  console.error("[juwa] →", url, JSON.stringify(sentFields));
   const res = await fetch(url, { method: "POST", body: form });
   const text = await res.text();
-  console.log("[juwa] ←", res.status, text);
+  console.error("[juwa] ←", res.status, text);
   let body: { code?: number; msg?: string; data?: T };
   try {
     body = JSON.parse(text);
