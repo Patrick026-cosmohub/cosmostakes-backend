@@ -103,8 +103,15 @@ export async function juwaCall<T = Record<string, unknown>>(
   }
 
   const url = creds.baseUrl.replace(/\/$/, "") + path;
+  console.log("[juwa] →", url, {
+    agent_id: creds.agentId,
+    timestamp,
+    token: "***",
+    ...fields,
+  });
   const res = await fetch(url, { method: "POST", body: form });
   const text = await res.text();
+  console.log("[juwa] ←", res.status, text.slice(0, 500));
   let body: { code?: number; msg?: string; data?: T };
   try {
     body = JSON.parse(text);
@@ -112,7 +119,11 @@ export async function juwaCall<T = Record<string, unknown>>(
     throw new Error(`Juwa non-JSON response (${res.status}): ${text.slice(0, 200)}`);
   }
   if (body.code !== 0) {
-    const err = new Error(`Juwa error code=${body.code} msg=${body.msg ?? ""}`);
+    let message = `Juwa error ${body.code}: ${body.msg ?? ""}`;
+    if (body.code === 5) {
+      message += ` — your server's outbound IP is not whitelisted by Juwa. Contact Juwa support to whitelist this site's egress IP.`;
+    }
+    const err = new Error(message);
     (err as Error & { code?: number; msg?: string }).code = body.code;
     (err as Error & { code?: number; msg?: string }).msg = body.msg;
     throw err;
@@ -121,11 +132,20 @@ export async function juwaCall<T = Record<string, unknown>>(
 }
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+const ALPHABET_ALNUM = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 export function randomString(len: number): string {
   let s = "";
   const arr = new Uint32Array(len);
   crypto.getRandomValues(arr);
   for (let i = 0; i < len; i++) s += ALPHABET[arr[i] % ALPHABET.length];
+  return s;
+}
+
+export function randomAlnum(len: number): string {
+  let s = "";
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  for (let i = 0; i < len; i++) s += ALPHABET_ALNUM[arr[i] % ALPHABET_ALNUM.length];
   return s;
 }
 
