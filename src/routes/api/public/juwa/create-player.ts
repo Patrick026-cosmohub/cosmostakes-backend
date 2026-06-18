@@ -6,15 +6,16 @@ import {
   jsonError,
   jsonOk,
   juwaCall,
-} from "./_helpers.server";
+} from "./-_helpers.server";
 
 function generateJuwaUsername(): string {
   const letters = "abcdefghijklmnopqrstuvwxyz";
   const digits = "0123456789";
+  const tail = letters + digits + "_";
   const rand = new Uint32Array(10);
   crypto.getRandomValues(rand);
-  let username = "";
-  for (let i = 0; i < 8; i++) username += letters[rand[i] % letters.length];
+  let username = letters[rand[0] % letters.length];
+  for (let i = 1; i < 8; i++) username += tail[rand[i] % tail.length];
   for (let i = 8; i < 10; i++) username += digits[rand[i] % digits.length];
   return username;
 }
@@ -32,8 +33,8 @@ function generateJuwaPassword(): string {
   return pwd;
 }
 
-// Juwa account rule: starts with letter, 6-12 alphanumeric chars.
-const JUWA_ACCOUNT_RE = /^[a-zA-Z][a-zA-Z0-9]{5,11}$/;
+// Juwa account rule from their docs: letters, numbers, and underscores.
+const JUWA_ACCOUNT_RE = /^[a-zA-Z][a-zA-Z0-9_]{5,31}$/;
 
 const schema = z.object({
   platform: z.enum(["juwa", "juwa2", "gamevault"]),
