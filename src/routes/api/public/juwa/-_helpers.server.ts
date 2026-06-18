@@ -120,7 +120,11 @@ export async function juwaCall<T = Record<string, unknown>>(
   try {
     body = JSON.parse(text);
   } catch {
-    throw new Error(`Juwa non-JSON response (${res.status}): ${text.slice(0, 200)}`);
+    const err = new Error(`Juwa non-JSON response (${res.status}): ${text.slice(0, 200)}`);
+    (err as Error & { status?: number; body?: string; sent?: Record<string, string> }).status = res.status;
+    (err as Error & { status?: number; body?: string; sent?: Record<string, string> }).body = text;
+    (err as Error & { status?: number; body?: string; sent?: Record<string, string> }).sent = sentFields as Record<string, string>;
+    throw err;
   }
   if (body.code !== 0) {
     let message = `Juwa error ${body.code}: ${body.msg ?? ""}`;
@@ -128,8 +132,12 @@ export async function juwaCall<T = Record<string, unknown>>(
       message += ` — your server's outbound IP is not whitelisted by Juwa. Contact Juwa support to whitelist this site's egress IP.`;
     }
     const err = new Error(message);
-    (err as Error & { code?: number; msg?: string }).code = body.code;
-    (err as Error & { code?: number; msg?: string }).msg = body.msg;
+    type JuwaErr = Error & { code?: number; msg?: string; status?: number; body?: string; sent?: Record<string, string> };
+    (err as JuwaErr).code = body.code;
+    (err as JuwaErr).msg = body.msg;
+    (err as JuwaErr).status = res.status;
+    (err as JuwaErr).body = text;
+    (err as JuwaErr).sent = sentFields as Record<string, string>;
     throw err;
   }
   return (body.data ?? ({} as T)) as T;
