@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { checkApiKey, getCreds, jsonError, jsonOk, juwaCall } from "./_helpers.server";
+import { checkApiKey, getCreds, jsonError, jsonOk, juwaCall } from "./-_helpers.server";
 
 const schema = z.object({
   platform: z.enum(["juwa", "juwa2", "gamevault"]),
