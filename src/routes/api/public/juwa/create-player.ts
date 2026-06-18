@@ -6,8 +6,18 @@ import {
   jsonError,
   jsonOk,
   juwaCall,
-  randomAlnum,
 } from "./_helpers.server";
+
+function generateJuwaUsername(): string {
+  const letters = "abcdefghijklmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const rand = new Uint32Array(10);
+  crypto.getRandomValues(rand);
+  let username = "";
+  for (let i = 0; i < 8; i++) username += letters[rand[i] % letters.length];
+  for (let i = 8; i < 10; i++) username += digits[rand[i] % digits.length];
+  return username;
+}
 
 const schema = z.object({
   platform: z.enum(["juwa", "juwa2", "gamevault"]),
@@ -50,10 +60,9 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           });
         }
 
-        // Juwa account rules: letters/numbers/underscore, 4–20 chars.
-        const username = "cs_" + randomAlnum(8);
-        // Juwa password rules: 6–32 chars. Use 10 alphanumeric.
-        const password = randomAlnum(10);
+        // Juwa rule: must start with English letter. 8 lowercase letters + 2 digits.
+        const username = generateJuwaUsername();
+        const password = "Abcdef12345";
 
         let data: { account_name?: string; user_id?: string | number };
         try {
