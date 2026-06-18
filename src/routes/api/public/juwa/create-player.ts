@@ -101,7 +101,20 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             login_pwd: password,
           });
         } catch (e) {
-          return jsonError(502, (e as Error).message);
+          const err = e as Error & { code?: number; msg?: string; status?: number; body?: string; sent?: Record<string, string> };
+          try {
+            await supabaseAdmin.from("juwa_debug_log" as never).insert({
+              platform,
+              endpoint: "/api/external/addUser",
+              sent_fields: err.sent ?? { account: username, login_pwd: password },
+              response_status: err.status ?? null,
+              response_body: err.body ?? null,
+              juwa_code: err.code ?? null,
+              juwa_msg: err.msg ?? null,
+              error_message: err.message,
+            } as never);
+          } catch {}
+          return jsonError(502, err.message, { juwa_code: err.code, juwa_msg: err.msg, response_body: err.body });
         }
 
         const juwaUserId = String(data.user_id ?? "");
