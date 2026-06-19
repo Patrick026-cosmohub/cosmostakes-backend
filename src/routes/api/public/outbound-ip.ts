@@ -13,8 +13,7 @@ export const Route = createFileRoute('/api/public/outbound-ip')({
           if (useProxy && fixieUrl) {
             const undici = await import('undici')
             const dispatcher = new undici.ProxyAgent(fixieUrl)
-            // @ts-expect-error dispatcher option
-            const r = await undici.fetch('https://api.ipify.org?format=json', { dispatcher })
+            const r = await undici.fetch('https://api.ipify.org?format=json', { dispatcher } as Parameters<typeof undici.fetch>[1])
             ip = await r.json()
             via = 'fixie'
           } else {
