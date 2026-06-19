@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 export const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -115,8 +115,8 @@ export async function juwaCall<T = Record<string, unknown>>(
   if (relayUrl && relaySecret) {
     const payload = JSON.stringify({ url, fields: sentFields });
     const ts = Math.floor(Date.now() / 1000).toString();
-    const sig = createHash("sha256")
-      .update(`${ts}.${payload}.${relaySecret}`)
+    const sig = createHmac("sha256", relaySecret)
+      .update(`${ts}.${payload}`)
       .digest("hex");
     res = await fetch(relayUrl, {
       method: "POST",
