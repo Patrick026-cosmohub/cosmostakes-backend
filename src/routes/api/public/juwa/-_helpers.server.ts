@@ -109,19 +109,24 @@ export async function juwaCall<T = Record<string, unknown>>(
   } else {
     console.error("[juwa] →", url, JSON.stringify(sentFields));
   }
-  const fixieUrl = process.env.FIXIE_URL?.trim();
+  const relayUrl = process.env.RELAY_URL?.trim();
+  const relaySecret = process.env.RELAY_SECRET?.trim();
   let res: Response;
-  if (fixieUrl) {
-    try {
-      const undici = await import("undici");
-      const dispatcher = new undici.ProxyAgent(fixieUrl);
-      console.error("[juwa] using Fixie proxy");
-      // @ts-expect-error undici fetch accepts dispatcher
-      res = (await undici.fetch(url, { method: "POST", body: form, dispatcher })) as unknown as Response;
-    } catch (e) {
-      console.error("[juwa] Fixie proxy failed, falling back to direct fetch:", (e as Error).message);
-      res = await fetch(url, { method: "POST", body: form });
-    }
+  if (relayUrl && relaySecret) {
+    const payload = JSON.stringify({ url, fields: sentFields });
+    const ts = Math.floor(Date.now() / 1000).toString();
+    const sig = createHash("sha256")
+      .update(`${ts}.${payload}.${relaySecret}`)
+      .digest("hex");
+    res = await fetch(relayUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-relay-timestamp": ts,
+        "x-relay-signature": sig,
+      },
+      body: payload,
+    });
   } else {
     res = await fetch(url, { method: "POST", body: form });
   }
