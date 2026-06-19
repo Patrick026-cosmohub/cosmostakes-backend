@@ -106,11 +106,24 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(401); return res.end('bad signature');
     }
 
-    const { path, form } = JSON.parse(body);
-    const upstream = await fetch(`${JUWA_BASE}${path}`, {
+    const payload = JSON.parse(body);
+    const targetUrl = payload.url || `${JUWA_BASE.replace(/\/$/, '')}${payload.path}`;
+    const target = new URL(targetUrl);
+    const allowed = new URL(JUWA_BASE);
+
+    if (target.origin !== allowed.origin) {
+      res.writeHead(400); return res.end('invalid upstream');
+    }
+
+    const formFields = payload.fields || payload.form;
+    if (!formFields || typeof formFields !== 'object') {
+      res.writeHead(400); return res.end('invalid form');
+    }
+
+    const upstream = await fetch(target.toString(), {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams(form).toString(),
+      body: new URLSearchParams(formFields).toString(),
     });
 
     const text = await upstream.text();
