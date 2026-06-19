@@ -109,7 +109,22 @@ export async function juwaCall<T = Record<string, unknown>>(
   } else {
     console.error("[juwa] →", url, JSON.stringify(sentFields));
   }
-  const res = await fetch(url, { method: "POST", body: form });
+  const fixieUrl = process.env.FIXIE_URL?.trim();
+  let res: Response;
+  if (fixieUrl) {
+    try {
+      const undici = await import("undici");
+      const dispatcher = new undici.ProxyAgent(fixieUrl);
+      console.error("[juwa] using Fixie proxy");
+      // @ts-expect-error undici fetch accepts dispatcher
+      res = (await undici.fetch(url, { method: "POST", body: form, dispatcher })) as unknown as Response;
+    } catch (e) {
+      console.error("[juwa] Fixie proxy failed, falling back to direct fetch:", (e as Error).message);
+      res = await fetch(url, { method: "POST", body: form });
+    }
+  } else {
+    res = await fetch(url, { method: "POST", body: form });
+  }
   const text = await res.text();
   if (path === "/api/external/addUser") {
     console.log("[juwa addUser] raw response:", res.status, text);
