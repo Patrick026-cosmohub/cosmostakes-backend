@@ -261,6 +261,47 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          attachment_url: string | null
+          body: string | null
+          created_at: string
+          id: string
+          read_by_staff: boolean
+          sender_id: string | null
+          sender_type: Database["public"]["Enums"]["chat_sender_type"]
+          ticket_id: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_by_staff?: boolean
+          sender_id?: string | null
+          sender_type: Database["public"]["Enums"]["chat_sender_type"]
+          ticket_id: string
+        }
+        Update: {
+          attachment_url?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_by_staff?: boolean
+          sender_id?: string | null
+          sender_type?: Database["public"]["Enums"]["chat_sender_type"]
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposit_requests: {
         Row: {
           amount: number
@@ -933,6 +974,44 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_assignments: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          from_staff_id: string | null
+          id: string
+          ticket_id: string
+          to_staff_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          from_staff_id?: string | null
+          id?: string
+          ticket_id: string
+          to_staff_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          from_staff_id?: string | null
+          id?: string
+          ticket_id?: string
+          to_staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_assignments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_profiles: {
         Row: {
           created_at: string
@@ -962,6 +1041,152 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      support_tickets: {
+        Row: {
+          assigned_staff_id: string | null
+          created_at: string
+          game_provider: string | null
+          id: string
+          issue_type: string | null
+          last_message_at: string
+          last_message_preview: string | null
+          last_message_sender:
+            | Database["public"]["Enums"]["chat_sender_type"]
+            | null
+          player_id: string | null
+          player_name: string | null
+          player_phone: string | null
+          player_username: string | null
+          status: Database["public"]["Enums"]["ticket_status"]
+          ticket_number: number
+          unread_count_staff: number
+          updated_at: string
+        }
+        Insert: {
+          assigned_staff_id?: string | null
+          created_at?: string
+          game_provider?: string | null
+          id?: string
+          issue_type?: string | null
+          last_message_at?: string
+          last_message_preview?: string | null
+          last_message_sender?:
+            | Database["public"]["Enums"]["chat_sender_type"]
+            | null
+          player_id?: string | null
+          player_name?: string | null
+          player_phone?: string | null
+          player_username?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          ticket_number?: number
+          unread_count_staff?: number
+          updated_at?: string
+        }
+        Update: {
+          assigned_staff_id?: string | null
+          created_at?: string
+          game_provider?: string | null
+          id?: string
+          issue_type?: string | null
+          last_message_at?: string
+          last_message_preview?: string | null
+          last_message_sender?:
+            | Database["public"]["Enums"]["chat_sender_type"]
+            | null
+          player_id?: string | null
+          player_name?: string | null
+          player_phone?: string | null
+          player_username?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          ticket_number?: number
+          unread_count_staff?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ticket_attachments: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string | null
+          mime: string | null
+          size_bytes: number | null
+          ticket_id: string
+          uploaded_by: string | null
+          uploaded_by_type: Database["public"]["Enums"]["chat_sender_type"]
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          mime?: string | null
+          size_bytes?: number | null
+          ticket_id: string
+          uploaded_by?: string | null
+          uploaded_by_type?: Database["public"]["Enums"]["chat_sender_type"]
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          mime?: string | null
+          size_bytes?: number | null
+          ticket_id?: string
+          uploaded_by?: string | null
+          uploaded_by_type?: Database["public"]["Enums"]["chat_sender_type"]
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_notes: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          staff_id: string
+          ticket_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          staff_id: string
+          ticket_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          staff_id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_notes_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -1098,6 +1323,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_ticket: {
+        Args: { _ticket_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_handle_finance: { Args: { _user_id: string }; Returns: boolean }
       has_any_staff_role: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
@@ -1110,6 +1339,7 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "admin" | "finance_agent" | "support_agent"
+      chat_sender_type: "player" | "staff" | "bot" | "system"
       ledger_type:
         | "deposit"
         | "cashout"
@@ -1124,6 +1354,13 @@ export type Database = {
         | "rejected"
         | "failed"
         | "uncertain"
+      ticket_status:
+        | "new"
+        | "waiting"
+        | "assigned"
+        | "in_progress"
+        | "resolved"
+        | "closed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1252,6 +1489,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "admin", "finance_agent", "support_agent"],
+      chat_sender_type: ["player", "staff", "bot", "system"],
       ledger_type: [
         "deposit",
         "cashout",
@@ -1267,6 +1505,14 @@ export const Constants = {
         "rejected",
         "failed",
         "uncertain",
+      ],
+      ticket_status: [
+        "new",
+        "waiting",
+        "assigned",
+        "in_progress",
+        "resolved",
+        "closed",
       ],
     },
   },
