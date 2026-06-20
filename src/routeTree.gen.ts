@@ -41,6 +41,9 @@ import { Route as ApiPublicJuwaRechargeRouteImport } from './routes/api/public/j
 import { Route as ApiPublicJuwaCreatePlayerRouteImport } from './routes/api/public/juwa/create-player'
 import { Route as ApiPublicJuwaBalanceRouteImport } from './routes/api/public/juwa/balance'
 import { Route as ApiPublicChatStartRouteImport } from './routes/api/public/chat/start'
+import { Route as ApiPublicChatMessageRouteImport } from './routes/api/public/chat/message'
+import { Route as ApiPublicChatConfigRouteImport } from './routes/api/public/chat/config'
+import { Route as ApiPublicChatTicketIdMessagesRouteImport } from './routes/api/public/chat/ticket.$id.messages'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -207,6 +210,22 @@ const ApiPublicChatStartRoute = ApiPublicChatStartRouteImport.update({
   path: '/api/public/chat/start',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicChatMessageRoute = ApiPublicChatMessageRouteImport.update({
+  id: '/api/public/chat/message',
+  path: '/api/public/chat/message',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicChatConfigRoute = ApiPublicChatConfigRouteImport.update({
+  id: '/api/public/chat/config',
+  path: '/api/public/chat/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicChatTicketIdMessagesRoute =
+  ApiPublicChatTicketIdMessagesRouteImport.update({
+    id: '/api/public/chat/ticket/$id/messages',
+    path: '/api/public/chat/ticket/$id/messages',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -234,12 +253,15 @@ export interface FileRoutesByFullPath {
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/config': typeof ApiPublicChatConfigRoute
+  '/api/public/chat/message': typeof ApiPublicChatMessageRoute
   '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -267,12 +289,15 @@ export interface FileRoutesByTo {
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/config': typeof ApiPublicChatConfigRoute
+  '/api/public/chat/message': typeof ApiPublicChatMessageRoute
   '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -302,12 +327,15 @@ export interface FileRoutesById {
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/config': typeof ApiPublicChatConfigRoute
+  '/api/public/chat/message': typeof ApiPublicChatMessageRoute
   '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -337,12 +365,15 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/config'
+    | '/api/public/chat/message'
     | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/public/chat/ticket/$id/messages'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -370,12 +401,15 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/config'
+    | '/api/public/chat/message'
     | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/public/chat/ticket/$id/messages'
   id:
     | '__root__'
     | '/'
@@ -404,12 +438,15 @@ export interface FileRouteTypes {
     | '/_authenticated/transactions'
     | '/_authenticated/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/config'
+    | '/api/public/chat/message'
     | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/public/chat/ticket/$id/messages'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -417,12 +454,15 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicOutboundIpRoute: typeof ApiPublicOutboundIpRoute
+  ApiPublicChatConfigRoute: typeof ApiPublicChatConfigRoute
+  ApiPublicChatMessageRoute: typeof ApiPublicChatMessageRoute
   ApiPublicChatStartRoute: typeof ApiPublicChatStartRoute
   ApiPublicJuwaBalanceRoute: typeof ApiPublicJuwaBalanceRoute
   ApiPublicJuwaCreatePlayerRoute: typeof ApiPublicJuwaCreatePlayerRoute
   ApiPublicJuwaRechargeRoute: typeof ApiPublicJuwaRechargeRoute
   ApiPublicJuwaResetPasswordRoute: typeof ApiPublicJuwaResetPasswordRoute
   ApiPublicJuwaWithdrawRoute: typeof ApiPublicJuwaWithdrawRoute
+  ApiPublicChatTicketIdMessagesRoute: typeof ApiPublicChatTicketIdMessagesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -651,6 +691,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicChatStartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/chat/message': {
+      id: '/api/public/chat/message'
+      path: '/api/public/chat/message'
+      fullPath: '/api/public/chat/message'
+      preLoaderRoute: typeof ApiPublicChatMessageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/chat/config': {
+      id: '/api/public/chat/config'
+      path: '/api/public/chat/config'
+      fullPath: '/api/public/chat/config'
+      preLoaderRoute: typeof ApiPublicChatConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/chat/ticket/$id/messages': {
+      id: '/api/public/chat/ticket/$id/messages'
+      path: '/api/public/chat/ticket/$id/messages'
+      fullPath: '/api/public/chat/ticket/$id/messages'
+      preLoaderRoute: typeof ApiPublicChatTicketIdMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -712,12 +773,15 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicOutboundIpRoute: ApiPublicOutboundIpRoute,
+  ApiPublicChatConfigRoute: ApiPublicChatConfigRoute,
+  ApiPublicChatMessageRoute: ApiPublicChatMessageRoute,
   ApiPublicChatStartRoute: ApiPublicChatStartRoute,
   ApiPublicJuwaBalanceRoute: ApiPublicJuwaBalanceRoute,
   ApiPublicJuwaCreatePlayerRoute: ApiPublicJuwaCreatePlayerRoute,
   ApiPublicJuwaRechargeRoute: ApiPublicJuwaRechargeRoute,
   ApiPublicJuwaResetPasswordRoute: ApiPublicJuwaResetPasswordRoute,
   ApiPublicJuwaWithdrawRoute: ApiPublicJuwaWithdrawRoute,
+  ApiPublicChatTicketIdMessagesRoute: ApiPublicChatTicketIdMessagesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
