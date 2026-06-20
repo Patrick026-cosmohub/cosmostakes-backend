@@ -30,7 +30,9 @@ export type Permission =
   | "security.manage"
   | "notifications.manage"
   | "backups.manage"
-  | "system.view";
+  | "system.view"
+  | "support.access"
+  | "support.admin";
 
 /**
  * Role → permission map.
@@ -67,6 +69,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "notifications.manage",
     "backups.manage",
     "system.view",
+    "support.access",
+    "support.admin",
   ],
   admin: [
     "dashboard.view",
@@ -83,6 +87,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "transactions.view",
     "promotions.manage",
     "announcements.manage",
+    "support.access",
+    "support.admin",
   ],
   finance_agent: [
     "dashboard.view",
@@ -100,6 +106,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "deposits.view",
     "cashouts.view",
     "transactions.view",
+    "support.access",
   ],
 };
 
