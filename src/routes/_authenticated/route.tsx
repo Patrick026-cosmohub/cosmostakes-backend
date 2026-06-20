@@ -29,6 +29,7 @@ import {
   Activity,
   Receipt,
   Lock,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL, type Role } from "@/lib/format";
@@ -52,6 +53,7 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; permission
   { to: "/deposits", label: "Deposits", icon: ArrowDownToLine, permission: "deposits.view" },
   { to: "/cashouts", label: "Cashouts", icon: ArrowUpFromLine, permission: "cashouts.view" },
   { to: "/transactions", label: "Transactions", icon: Receipt, permission: "transactions.view" },
+  { to: "/support", label: "Support Center", icon: MessageSquare, permission: "support.access" },
   { to: "/payment-methods", label: "Payment Methods", icon: CreditCard, permission: "payment_methods.view" },
   { to: "/wallet-tools", label: "Wallet Tools", icon: Wallet, permission: "wallet_tools.use" },
   { to: "/promotions", label: "Promotions", icon: Gift, permission: "promotions.manage" },
