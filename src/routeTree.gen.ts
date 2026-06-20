@@ -40,6 +40,7 @@ import { Route as ApiPublicJuwaResetPasswordRouteImport } from './routes/api/pub
 import { Route as ApiPublicJuwaRechargeRouteImport } from './routes/api/public/juwa/recharge'
 import { Route as ApiPublicJuwaCreatePlayerRouteImport } from './routes/api/public/juwa/create-player'
 import { Route as ApiPublicJuwaBalanceRouteImport } from './routes/api/public/juwa/balance'
+import { Route as ApiPublicChatStartRouteImport } from './routes/api/public/chat/start'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -201,6 +202,11 @@ const ApiPublicJuwaBalanceRoute = ApiPublicJuwaBalanceRouteImport.update({
   path: '/api/public/juwa/balance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicChatStartRoute = ApiPublicChatStartRouteImport.update({
+  id: '/api/public/chat/start',
+  path: '/api/public/chat/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -228,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
@@ -260,6 +267,7 @@ export interface FileRoutesByTo {
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
@@ -294,6 +302,7 @@ export interface FileRoutesById {
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
@@ -328,6 +337,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
@@ -393,6 +404,7 @@ export interface FileRouteTypes {
     | '/_authenticated/transactions'
     | '/_authenticated/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
@@ -405,6 +417,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicOutboundIpRoute: typeof ApiPublicOutboundIpRoute
+  ApiPublicChatStartRoute: typeof ApiPublicChatStartRoute
   ApiPublicJuwaBalanceRoute: typeof ApiPublicJuwaBalanceRoute
   ApiPublicJuwaCreatePlayerRoute: typeof ApiPublicJuwaCreatePlayerRoute
   ApiPublicJuwaRechargeRoute: typeof ApiPublicJuwaRechargeRoute
@@ -631,6 +644,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicJuwaBalanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/chat/start': {
+      id: '/api/public/chat/start'
+      path: '/api/public/chat/start'
+      fullPath: '/api/public/chat/start'
+      preLoaderRoute: typeof ApiPublicChatStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -692,6 +712,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicOutboundIpRoute: ApiPublicOutboundIpRoute,
+  ApiPublicChatStartRoute: ApiPublicChatStartRoute,
   ApiPublicJuwaBalanceRoute: ApiPublicJuwaBalanceRoute,
   ApiPublicJuwaCreatePlayerRoute: ApiPublicJuwaCreatePlayerRoute,
   ApiPublicJuwaRechargeRoute: ApiPublicJuwaRechargeRoute,
