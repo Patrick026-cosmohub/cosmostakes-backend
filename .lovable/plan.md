@@ -1,96 +1,66 @@
-## Cosmo Stakes — Super Admin Portal completion plan
+## Scope (MVP)
 
-You already have these modules working: Dashboard, Platforms, Players, Deposits, Cashouts, Payment Methods, Wallet Tools, Audit Log, Reports, Staff, Roles & Permissions, Settings (General + API integrations). This plan closes every remaining gap from your spec, in one coordinated build.
+Admin-side Support Center + shared DB + public chat API. The player frontend (separate project) will be wired to the new endpoints in a follow-up using its own repo.
 
-### Stack note (important)
+## What I will NOT touch
+- Existing sidebar items, routes, or pages — only **add** a new "Support Center" link + new route files.
+- No changes to auth, players table, juwa endpoints, deposits, cashouts, etc.
 
-Your spec lists Node/Express + standalone PostgreSQL + Docker. This project actually runs on **TanStack Start + Lovable Cloud (managed Postgres + Auth + Storage + Realtime)**, which already covers: managed Postgres with RLS, JWT auth, file storage, realtime websockets, autoscaling, backups, and cloud deployment. I'll build everything against this stack — functionally identical, no Docker/Express needed. If you want a separate self-hosted Node backend instead, say the word and I'll stop and re-scope.
+## Database (one migration)
 
-### What I'll build
+Tables in `public` (all with GRANTs + RLS):
 
-**1. Promotions & Bonuses module** (`/promotions`)
-- `bonuses` table: type (welcome/referral/reload/cashback/seasonal), name, percentage, min_deposit, max_bonus, starts_at, expires_at, platform scope (all or specific game), active flag.
-- CRUD UI with create/edit/delete, activate toggle, per-platform targeting.
-- Bonus claims log table for audit.
+- **support_tickets** — `id, ticket_number (seq), player_id, player_name, player_phone, player_username, game_provider, issue_type, status (enum: new|waiting|assigned|in_progress|resolved|closed), assigned_staff_id, last_message_at, last_message_preview, unread_count_staff, created_at, updated_at`
+- **chat_messages** — `id, ticket_id, sender_type (player|staff|bot|system), sender_id, body, attachment_url, read_by_staff, created_at`
+- **ticket_notes** — staff-only notes (`id, ticket_id, staff_id, body, created_at`)
+- **ticket_attachments** — `id, message_id, ticket_id, url, mime, size, uploaded_by, created_at`
+- **staff_assignments** — audit row per assign/transfer (`id, ticket_id, from_staff_id, to_staff_id, action, created_at`)
 
-**2. VIP Management module** (`/vip`)
-- `vip_tiers` table: name, icon, color, deposit_required, monthly_activity_required, cashback_pct, perks (jsonb), priority_support, sort_order, active.
-- `player_vip` view/column derived from deposit volume.
-- Drag-to-reorder, add/edit/delete, instant-apply.
+Enum `ticket_status`. Trigger to update `last_message_at`/`preview`/`unread_count_staff` on new message. Realtime publication ADD for `support_tickets` and `chat_messages`.
 
-**3. CMS — Announcements** (`/announcements`)
-- `announcements` table: title, body, starts_at, ends_at, pinned, push_enabled, platform scope, active.
-- Schedule + pin + push flag (push delivery is a stub hook for later).
+### RLS
+- Staff (`support_agent`, `admin`, `super_admin`) read tickets where `assigned_staff_id = auth.uid()` OR `assigned_staff_id IS NULL`.
+- `super_admin` and `admin` read all.
+- Messages/notes scoped via ticket access (function `can_access_ticket(ticket_id)`).
+- Only `super_admin` can delete tickets.
+- Public/anon insert is **not** allowed — player writes go through the public API route (service role) which authenticates the player via their existing session token.
 
-**4. CMS — Theme & Branding** (`/cms/theme`)
-- `site_theme` singleton: mode (dark/light), primary, accent, background_image, banner_image, logo, widget config (jsonb).
-- Live preview, storage bucket `cms-assets` for uploads.
+Storage bucket `chat-attachments` (private), signed-URL reads.
 
-**5. CMS — Music** (`/cms/music`)
-- `music_tracks` table + `music_settings` singleton (enabled, autoplay, default_volume, playlist order).
-- Upload to `cms-music` bucket.
+## Public API (player site calls these)
 
-**6. CMS — Game Display** (`/cms/games`)
-- Extends existing `games` table with: display_title, description, thumbnail_url, logo_url, featured, sort_order, active.
-- Reorder, edit, featured toggle, image upload.
+`src/routes/api/public/chat/`
+- `POST start` — creates ticket + bot greeting message. Body: `{ player_id, name, phone, username, game_provider, issue_type }`.
+- `POST message` — appends player message. Body: `{ ticket_id, body, attachment_url? }`.
+- `GET ticket/$id/messages` — poll fallback / initial load.
+- `GET config` — bot greeting, quick replies, chatbot on/off, offline msg (read from `general_settings`).
 
-**7. Transactions** (`/transactions`)
-- Unified view across deposits + cashouts + wallet_ledger with advanced filters (platform, player, method, status, date range, amount range), search, **CSV + PDF export**, fraud flag column.
+All routes verify the caller via a lightweight player token (using the existing player auth pattern in juwa routes — `COSMO_ADMIN_API_KEY` header from the player site server).
 
-**8. Security Settings** (`/security`)
-- 2FA enrollment (TOTP) for super admins (Supabase Auth MFA).
-- Active sessions list + force-logout (via Auth admin API).
-- `security_settings` singleton: password complexity rules, session timeout, IP whitelist (jsonb array).
-- Login history table populated from `auth.audit_log_entries` view.
-- Change-password flow.
+CORS headers + OPTIONS handler on each.
 
-**9. Notifications settings** (`/notifications`)
-- `notification_settings` singleton: email/sms/push toggles + sender config (uses existing Resend connector if added later; UI built now, sending wired when secret is provided).
+## Admin UI
 
-**10. Backup & Recovery** (`/backups`)
-- Manual CSV export per major table, scheduled export via `pg_cron` writing to storage, restore UI documents the supported flow (Lovable Cloud manages PITR — surfaced read-only).
+New files only:
+- `src/routes/_authenticated/support.tsx` — Support Center page with tabs (New, Waiting, Assigned to Me, In Progress, Resolved, Closed). Left: ticket list w/ search. Right: conversation pane.
+- `src/components/support/TicketList.tsx`, `Conversation.tsx`, `ReplyComposer.tsx`, `AssignMenu.tsx`, `StatusMenu.tsx`.
+- Server fns in `src/lib/support.functions.ts`: `listTickets`, `getTicket`, `getMessages`, `sendStaffReply`, `assignToMe`, `transferTicket`, `setStatus`, `addNote`.
+- Permission `support:access` added to `src/lib/permissions.ts`, mapped to staff roles.
+- Sidebar entry added to the `NAV` array in `src/routes/_authenticated/route.tsx` (single insertion, no other changes).
 
-**11. System Status** (`/system`)
-- Health card: DB latency probe, Auth probe, Storage probe, per-platform API uptime (from `platform_integrations.last_test_at` / status), storage usage estimate.
+Realtime via `supabase.channel('support')` subscribing to `chat_messages` and `support_tickets` inserts/updates; React Query cache invalidation on events.
 
-**12. Platforms enhancements**
-- Add to `games` table: maintenance_mode, logo_url, sort_order, card_style (jsonb), sync_frequency_seconds.
-- Reorder, maintenance toggle, logo upload, sync log table `platform_sync_logs`.
+Audit-log entry on assign/transfer/status-change/reply via existing `audit_logs` table.
 
-**13. Players enhancements**
-- Add columns: kyc_status, vip_tier_id, last_login_at, login_count, suspended_at, support_notes (already partly there).
-- Login history table `player_logins`.
-- Reset-password action (Auth admin), suspend/reactivate, KYC status editor.
+## Deferred (next pass, per your "MVP first" choice)
+- Bot config editor / quick reply editor UI
+- Business hours / offline message
+- Export chat history
+- Typing indicator
+- Ticket archive/delete UI
+- Notification fan-out (just realtime for now)
+- Player-side widget upgrade (separate repo)
 
-**14. Audit Logs hardening**
-- Add `prev_value` / `new_value` columns (jsonb) — already present; ensure every new mutation server fn writes both.
-- Add immutability: revoke UPDATE/DELETE on `audit_logs` from authenticated; only `service_role` can insert via server fns.
-
-**15. Sidebar nav update**
-Adds: Transactions, Promotions, VIP, Announcements, CMS (Theme/Music/Games submenu), Security, Notifications, Backups, System. All gated by new permissions in `src/lib/permissions.ts`.
-
-### Technical details
-
-- **Migrations**: one consolidated migration creates all new tables with GRANTs + RLS scoped via `has_role` / `can_handle_finance`. Audit log triggers added for sensitive tables (bonuses, vip_tiers, security_settings, theme, games).
-- **Storage buckets** (private, signed URLs): `cms-assets`, `cms-music`, `platform-logos`, `player-kyc`.
-- **Server fns** in `src/lib/admin.functions.ts` (or split into `cms.functions.ts`, `promotions.functions.ts`, `security.functions.ts` for readability) — all use `requireSupabaseAuth` + role check; admin operations load `supabaseAdmin` inside the handler.
-- **Realtime dashboard**: subscribe to `deposit_requests`, `cashout_requests`, `wallet_ledger` for live KPI updates.
-- **Exports**: CSV via in-browser blob; PDF via `pdf-lib` (Worker-compatible).
-- **2FA**: `supabase.auth.mfa.enroll` flow with QR; enforce on super_admin login via a check in `_authenticated` layout.
-- **Permissions added**: `promotions.manage`, `vip.manage`, `cms.manage`, `transactions.view`, `security.manage`, `notifications.manage`, `backups.manage`, `system.view`.
-
-### Out of scope (call out)
-
-- Actual push/SMS/email delivery wiring — UI and settings built; sending requires Resend/Twilio secrets which I'll request only if/when you want delivery turned on.
-- Real-money API calls to Juwa/Firekirin/etc. — integration scaffolding + test-connection already exists; live sync requires real credentials per platform.
-- Self-hosted Node/Express/Docker rebuild — covered by Lovable Cloud instead (see stack note).
-
-### Build order (single session)
-
-1. Consolidated migration (all new tables, columns, RLS, GRANTs, audit immutability, storage buckets via tool).
-2. Server functions split by domain.
-3. New routes + sidebar entries + permissions.
-4. Players/Platforms/Audit enhancements.
-5. Smoke-test build, verify no SSR/import-graph regressions.
-
-Approve and I'll ship it. This is a large single batch (~15 new routes, ~25 new tables/columns); expect a long build turn.
+## Risks
+- Player site is a different project; I'll output the endpoint contract so you can paste it there.
+- Realtime requires player's Supabase client to subscribe with their player auth — depends on how that project authenticates.
