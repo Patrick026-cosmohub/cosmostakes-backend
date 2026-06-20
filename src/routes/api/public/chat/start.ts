@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { checkApiKey, cors204, jsonError, jsonOk, CORS_HEADERS } from "./-_helpers.server";
+import { checkApiKey, cors204, jsonError, CORS_HEADERS } from "./-_helpers.server";
 
 const BOT_GREETING = "Hi 👋 Welcome to Cosmo Stakes Support. How can we help you today?";
 
