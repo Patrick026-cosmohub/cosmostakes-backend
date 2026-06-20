@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedVipRouteImport } from './routes/_authenticated/vip'
 import { Route as AuthenticatedTransactionsRouteImport } from './routes/_authenticated/transactions'
 import { Route as AuthenticatedSystemRouteImport } from './routes/_authenticated/system'
+import { Route as AuthenticatedSupportRouteImport } from './routes/_authenticated/support'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
@@ -40,6 +41,10 @@ import { Route as ApiPublicJuwaResetPasswordRouteImport } from './routes/api/pub
 import { Route as ApiPublicJuwaRechargeRouteImport } from './routes/api/public/juwa/recharge'
 import { Route as ApiPublicJuwaCreatePlayerRouteImport } from './routes/api/public/juwa/create-player'
 import { Route as ApiPublicJuwaBalanceRouteImport } from './routes/api/public/juwa/balance'
+import { Route as ApiPublicChatStartRouteImport } from './routes/api/public/chat/start'
+import { Route as ApiPublicChatMessageRouteImport } from './routes/api/public/chat/message'
+import { Route as ApiPublicChatConfigRouteImport } from './routes/api/public/chat/config'
+import { Route as ApiPublicChatTicketIdMessagesRouteImport } from './routes/api/public/chat/ticket.$id.messages'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -69,6 +74,11 @@ const AuthenticatedTransactionsRoute =
 const AuthenticatedSystemRoute = AuthenticatedSystemRouteImport.update({
   id: '/system',
   path: '/system',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSupportRoute = AuthenticatedSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
@@ -201,6 +211,27 @@ const ApiPublicJuwaBalanceRoute = ApiPublicJuwaBalanceRouteImport.update({
   path: '/api/public/juwa/balance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicChatStartRoute = ApiPublicChatStartRouteImport.update({
+  id: '/api/public/chat/start',
+  path: '/api/public/chat/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicChatMessageRoute = ApiPublicChatMessageRouteImport.update({
+  id: '/api/public/chat/message',
+  path: '/api/public/chat/message',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicChatConfigRoute = ApiPublicChatConfigRouteImport.update({
+  id: '/api/public/chat/config',
+  path: '/api/public/chat/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicChatTicketIdMessagesRoute =
+  ApiPublicChatTicketIdMessagesRouteImport.update({
+    id: '/api/public/chat/ticket/$id/messages',
+    path: '/api/public/chat/ticket/$id/messages',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -224,15 +255,20 @@ export interface FileRoutesByFullPath {
   '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/support': typeof AuthenticatedSupportRoute
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/config': typeof ApiPublicChatConfigRoute
+  '/api/public/chat/message': typeof ApiPublicChatMessageRoute
+  '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -256,15 +292,20 @@ export interface FileRoutesByTo {
   '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/support': typeof AuthenticatedSupportRoute
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/config': typeof ApiPublicChatConfigRoute
+  '/api/public/chat/message': typeof ApiPublicChatMessageRoute
+  '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -290,15 +331,20 @@ export interface FileRoutesById {
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
+  '/_authenticated/support': typeof AuthenticatedSupportRoute
   '/_authenticated/system': typeof AuthenticatedSystemRoute
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/vip': typeof AuthenticatedVipRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/public/chat/config': typeof ApiPublicChatConfigRoute
+  '/api/public/chat/message': typeof ApiPublicChatMessageRoute
+  '/api/public/chat/start': typeof ApiPublicChatStartRoute
   '/api/public/juwa/balance': typeof ApiPublicJuwaBalanceRoute
   '/api/public/juwa/create-player': typeof ApiPublicJuwaCreatePlayerRoute
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -324,15 +370,20 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/staff'
+    | '/support'
     | '/system'
     | '/transactions'
     | '/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/config'
+    | '/api/public/chat/message'
+    | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/public/chat/ticket/$id/messages'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -356,15 +407,20 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/staff'
+    | '/support'
     | '/system'
     | '/transactions'
     | '/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/config'
+    | '/api/public/chat/message'
+    | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/public/chat/ticket/$id/messages'
   id:
     | '__root__'
     | '/'
@@ -389,15 +445,20 @@ export interface FileRouteTypes {
     | '/_authenticated/security'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
+    | '/_authenticated/support'
     | '/_authenticated/system'
     | '/_authenticated/transactions'
     | '/_authenticated/vip'
     | '/api/public/outbound-ip'
+    | '/api/public/chat/config'
+    | '/api/public/chat/message'
+    | '/api/public/chat/start'
     | '/api/public/juwa/balance'
     | '/api/public/juwa/create-player'
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/public/chat/ticket/$id/messages'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -405,11 +466,15 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicOutboundIpRoute: typeof ApiPublicOutboundIpRoute
+  ApiPublicChatConfigRoute: typeof ApiPublicChatConfigRoute
+  ApiPublicChatMessageRoute: typeof ApiPublicChatMessageRoute
+  ApiPublicChatStartRoute: typeof ApiPublicChatStartRoute
   ApiPublicJuwaBalanceRoute: typeof ApiPublicJuwaBalanceRoute
   ApiPublicJuwaCreatePlayerRoute: typeof ApiPublicJuwaCreatePlayerRoute
   ApiPublicJuwaRechargeRoute: typeof ApiPublicJuwaRechargeRoute
   ApiPublicJuwaResetPasswordRoute: typeof ApiPublicJuwaResetPasswordRoute
   ApiPublicJuwaWithdrawRoute: typeof ApiPublicJuwaWithdrawRoute
+  ApiPublicChatTicketIdMessagesRoute: typeof ApiPublicChatTicketIdMessagesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -454,6 +519,13 @@ declare module '@tanstack/react-router' {
       path: '/system'
       fullPath: '/system'
       preLoaderRoute: typeof AuthenticatedSystemRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/support': {
+      id: '/_authenticated/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof AuthenticatedSupportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/staff': {
@@ -631,6 +703,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicJuwaBalanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/chat/start': {
+      id: '/api/public/chat/start'
+      path: '/api/public/chat/start'
+      fullPath: '/api/public/chat/start'
+      preLoaderRoute: typeof ApiPublicChatStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/chat/message': {
+      id: '/api/public/chat/message'
+      path: '/api/public/chat/message'
+      fullPath: '/api/public/chat/message'
+      preLoaderRoute: typeof ApiPublicChatMessageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/chat/config': {
+      id: '/api/public/chat/config'
+      path: '/api/public/chat/config'
+      fullPath: '/api/public/chat/config'
+      preLoaderRoute: typeof ApiPublicChatConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/chat/ticket/$id/messages': {
+      id: '/api/public/chat/ticket/$id/messages'
+      path: '/api/public/chat/ticket/$id/messages'
+      fullPath: '/api/public/chat/ticket/$id/messages'
+      preLoaderRoute: typeof ApiPublicChatTicketIdMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -654,6 +754,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
+  AuthenticatedSupportRoute: typeof AuthenticatedSupportRoute
   AuthenticatedSystemRoute: typeof AuthenticatedSystemRoute
   AuthenticatedTransactionsRoute: typeof AuthenticatedTransactionsRoute
   AuthenticatedVipRoute: typeof AuthenticatedVipRoute
@@ -679,6 +780,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
+  AuthenticatedSupportRoute: AuthenticatedSupportRoute,
   AuthenticatedSystemRoute: AuthenticatedSystemRoute,
   AuthenticatedTransactionsRoute: AuthenticatedTransactionsRoute,
   AuthenticatedVipRoute: AuthenticatedVipRoute,
@@ -692,22 +794,16 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicOutboundIpRoute: ApiPublicOutboundIpRoute,
+  ApiPublicChatConfigRoute: ApiPublicChatConfigRoute,
+  ApiPublicChatMessageRoute: ApiPublicChatMessageRoute,
+  ApiPublicChatStartRoute: ApiPublicChatStartRoute,
   ApiPublicJuwaBalanceRoute: ApiPublicJuwaBalanceRoute,
   ApiPublicJuwaCreatePlayerRoute: ApiPublicJuwaCreatePlayerRoute,
   ApiPublicJuwaRechargeRoute: ApiPublicJuwaRechargeRoute,
   ApiPublicJuwaResetPasswordRoute: ApiPublicJuwaResetPasswordRoute,
   ApiPublicJuwaWithdrawRoute: ApiPublicJuwaWithdrawRoute,
+  ApiPublicChatTicketIdMessagesRoute: ApiPublicChatTicketIdMessagesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
