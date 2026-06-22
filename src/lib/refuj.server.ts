@@ -215,6 +215,10 @@ export async function readRefujGameList(configuredBase?: string | null) {
 }
 
 export async function callRefujTransfer(input: RefujTransferInput): Promise<RefujTransferResult> {
+  if (input.kind !== "deposit") {
+    throw new Error("REFUJ is only used for game loads. Redeems are handled manually and credited on admin approval.");
+  }
+
   const { secretKey, passphrase } = masterConfig();
   const gameUser = input.gameUser?.trim() || env("REFUJ_DEFAULT_GAME_USER");
   const gamePass = input.gamePass?.trim() || env("REFUJ_DEFAULT_GAME_PASS");
@@ -222,13 +226,9 @@ export async function callRefujTransfer(input: RefujTransferInput): Promise<Refu
     throw new Error(`REFUJ game username/password is missing for ${input.gameName}.`);
   }
 
-  if (input.kind === "cashout" && env("REFUJ_ENABLE_CASHOUTS").toLowerCase() !== "true") {
-    throw new Error("REFUJ cashouts are disabled. Set REFUJ_ENABLE_CASHOUTS=true only after confirming the withdraw endpoint.");
-  }
-
   const gameCode = resolveGameCode(input.gameName, input.gameCode);
   const amount = Math.round(Number(input.amount));
-  const transferId = `${input.kind === "deposit" ? "COSMO-LOAD" : "COSMO-REDEEM"}-${input.requestId}`;
+  const transferId = `COSMO-LOAD-${input.requestId}`;
   const common = {
     secret_key: secretKey,
     gaming_site: gameCode,
@@ -238,12 +238,7 @@ export async function callRefujTransfer(input: RefujTransferInput): Promise<Refu
     customer_username: input.customerUsername,
   };
 
-  const payload =
-    input.kind === "deposit"
-      ? { ...common, deposit_id: transferId, bonus: 0 }
-      : { ...common, withdraw_id: transferId };
-
-  const path = input.kind === "deposit" ? "/credits/add_credit" : "/credits/withdraw_credit";
-  const { status, body } = await postRefuj(path, payload, input.apiBase);
+  const payload = { ...common, deposit_id: transferId, bonus: 0 };
+  const { status, body } = await postRefuj("/credits/add_credit", payload, input.apiBase);
   return { transferId, gameCode, status, raw: body };
 }

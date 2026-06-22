@@ -487,9 +487,7 @@ export const listRequests = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
-async function maybeRunRefujForRequest(supabase: any, kind: "deposit" | "cashout", req: any) {
-  if (kind === "cashout" && process.env.REFUJ_ENABLE_CASHOUTS !== "true") return null;
-
+async function maybeRunRefujForDeposit(supabase: any, req: any) {
   const { data: player, error: playerError } = await supabase
     .from("players")
     .select("id,username,full_name,email,game_id,game:games(id,name,provider)")
@@ -509,7 +507,7 @@ async function maybeRunRefujForRequest(supabase: any, kind: "deposit" | "cashout
   if (integrationError) throw new Error(integrationError.message);
 
   const result = await callRefujTransfer({
-    kind,
+    kind: "deposit",
     requestId: req.id,
     gameName: game.name,
     gameCode: game.provider,
@@ -520,7 +518,7 @@ async function maybeRunRefujForRequest(supabase: any, kind: "deposit" | "cashout
     apiBase: integration?.api_endpoint,
   });
 
-  return `REFUJ ${kind} ${result.transferId} accepted (${result.gameCode}).`;
+  return `REFUJ deposit ${result.transferId} accepted (${result.gameCode}).`;
 }
 
 /** Approve / reject a deposit or cashout. Writes audit log + ledger. */
@@ -546,9 +544,9 @@ export const decideRequest = createServerFn({ method: "POST" })
     if (req.status !== "pending") throw new Error(`Request is already ${req.status}`);
 
     let refujNote: string | null = null;
-    if (data.decision === "approved") {
+    if (data.decision === "approved" && data.kind === "deposit") {
       try {
-        refujNote = await maybeRunRefujForRequest(supabase, data.kind, req);
+        refujNote = await maybeRunRefujForDeposit(supabase, req);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         await supabase
@@ -582,27 +580,23 @@ export const decideRequest = createServerFn({ method: "POST" })
       .eq("id", data.id);
     if (updErr) throw new Error(updErr.message);
 
-    // On approval, mutate player balance + write ledger
+    // On approval, credit the wallet and write a ledger row. Cashouts here are
+    // manual game redeems: admin redeems in the game, then approval credits wallet.
     if (data.decision === "approved") {
       const { data: player } = await supabase.from("players").select("balance").eq("id", req.player_id).single();
       const current = Number(player?.balance ?? 0);
-      const delta = data.kind === "deposit" ? Number(req.amount) : -Number(req.amount);
+      const delta = Number(req.amount);
       const next = current + delta;
-      if (data.kind === "cashout" && next < 0) {
-        // rollback status
-        await supabase.from(table).update({ status: "pending", processed_at: null, processed_by: null }).eq("id", data.id);
-        throw new Error("Insufficient player balance for cashout.");
-      }
       await supabase.from("players").update({ balance: next }).eq("id", req.player_id);
       await supabase.from("wallet_ledger").insert({
         player_id: req.player_id,
-        type: data.kind === "deposit" ? "deposit" : "cashout",
+        type: "deposit",
         amount: delta,
         balance_after: next,
         staff_id: userId,
         related_deposit: data.kind === "deposit" ? req.id : null,
         related_cashout: data.kind === "cashout" ? req.id : null,
-        reason: data.note ?? `${data.kind} approval`,
+        reason: data.note ?? (data.kind === "cashout" ? "manual redeem approval" : "deposit approval"),
       });
     }
 
