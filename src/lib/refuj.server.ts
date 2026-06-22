@@ -221,7 +221,8 @@ function accepted(responseStatus: number, body: any) {
       status === "success" ||
       status === "true" ||
       body?.success === true ||
-      message.includes("success"))
+      message.includes("success") ||
+      message.includes("request submitted"))
   );
 }
 

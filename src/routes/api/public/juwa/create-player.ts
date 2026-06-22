@@ -94,11 +94,16 @@ async function waitForRefujRegistration(input: {
 }) {
   for (let i = 0; i < 6; i++) {
     if (i > 0) await new Promise((resolve) => setTimeout(resolve, 2_000));
-    const result = await readRefujRegistrationRequests({
-      registrationId: input.registrationId,
-      gameCode: input.gameCode,
-      apiBase: input.apiBase,
-    });
+    let result;
+    try {
+      result = await readRefujRegistrationRequests({
+        registrationId: input.registrationId,
+        gameCode: input.gameCode,
+        apiBase: input.apiBase,
+      });
+    } catch {
+      continue;
+    }
     const match = refujRecords(result.raw).find((record: any) => {
       const regId = record.registration_id ?? record.registrationId ?? record.Registration_ID ?? record.request_id;
       if (regId && regId === input.registrationId) return true;
