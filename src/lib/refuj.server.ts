@@ -21,6 +21,30 @@ type RefujTransferResult = {
   raw: unknown;
 };
 
+export type RefujRegisterInput = {
+  registrationId: string;
+  gameName: string;
+  gameCode?: string | null;
+  gameUser?: string | null;
+  gamePass?: string | null;
+  desiredUsername: string;
+  nickname: string;
+  email: string;
+  apiBase?: string | null;
+};
+
+type RefujRegisterResult = {
+  registrationId: string;
+  gameCode: string;
+  status: number;
+  raw: unknown;
+};
+
+export type RefujRegistrationReadResult = {
+  status: number;
+  raw: unknown;
+};
+
 const DEFAULT_REFUJ_API_BASE = "https://www.refuj.io/api";
 
 const GAME_CODE_MAP: Record<string, string> = {
@@ -43,6 +67,8 @@ const GAME_CODE_MAP: Record<string, string> = {
   goldentreasure: "GT",
   "milky way": "MW",
   milkyway: "MW",
+  "high stakes": "HS",
+  highstakes: "HS",
   "double up": "DU",
   doubleup: "DU",
   "gameroom online": "GO",
@@ -146,6 +172,25 @@ export function encryptForRefuj(value: string, passphrase = requireEnv("REFUJ_EN
   ).toString("base64");
 }
 
+export function decryptFromRefuj(value: string, passphrase = requireEnv("REFUJ_ENCRYPTION_PASSPHRASE")) {
+  try {
+    if (!/^[a-f0-9]{64}$/i.test(passphrase)) return "";
+    const key = Buffer.from(passphrase, "hex");
+    const outer = JSON.parse(Buffer.from(value, "base64").toString("utf8"));
+    const iv = Buffer.from(outer.iv, "base64");
+    const tag = Buffer.from(outer.tag, "base64");
+    const encrypted = Buffer.from(outer.data, "base64");
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
+    const base64Plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+    const jsonText = Buffer.from(base64Plaintext, "base64").toString("utf8");
+    const parsed = JSON.parse(jsonText);
+    return typeof parsed === "string" ? parsed : String(parsed ?? "");
+  } catch {
+    return "";
+  }
+}
+
 function headers(gatewayKey: string) {
   const h: Record<string, string> = {
     "content-type": "application/json",
@@ -241,4 +286,46 @@ export async function callRefujTransfer(input: RefujTransferInput): Promise<Refu
   const payload = { ...common, deposit_id: transferId, bonus: 0 };
   const { status, body } = await postRefuj("/credits/add_credit", payload, input.apiBase);
   return { transferId, gameCode, status, raw: body };
+}
+
+export async function callRefujRegister(input: RefujRegisterInput): Promise<RefujRegisterResult> {
+  const { secretKey } = masterConfig();
+  const gameUser = input.gameUser?.trim() || env("REFUJ_DEFAULT_GAME_USER");
+  const gamePass = input.gamePass?.trim() || env("REFUJ_DEFAULT_GAME_PASS");
+  if (!gameUser || !gamePass) {
+    throw new Error(`REFUJ agent ID/password is missing for ${input.gameName}.`);
+  }
+
+  const gameCode = resolveGameCode(input.gameName, input.gameCode);
+  const payload = {
+    secret_key: secretKey,
+    registration_id: input.registrationId,
+    email: input.email,
+    gaming_site: gameCode,
+    nickname: input.nickname,
+    desire_username: input.desiredUsername,
+    game_user: gameUser,
+    game_pass: gamePass,
+  };
+
+  const { status, body } = await postRefuj("/credits/add_game_user", payload, input.apiBase);
+  return { registrationId: input.registrationId, gameCode, status, raw: body };
+}
+
+export async function readRefujRegistrationRequests(
+  opts: { registrationId?: string; gameCode?: string; apiBase?: string | null } = {},
+): Promise<RefujRegistrationReadResult> {
+  const { secretKey, gatewayKey } = masterConfig();
+  const url = new URL(`${apiBase(opts.apiBase)}/credits/read_game_user_requests`);
+  url.searchParams.set("secret_key", secretKey);
+  if (opts.registrationId) url.searchParams.set("registration_id", opts.registrationId);
+  if (opts.gameCode) url.searchParams.set("gaming_site", opts.gameCode);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: headers(gatewayKey),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const body = await readResponse(response);
+  if (!accepted(response.status, body)) throw new Error(errorMessage(response.status, body));
+  return { status: response.status, raw: body };
 }
