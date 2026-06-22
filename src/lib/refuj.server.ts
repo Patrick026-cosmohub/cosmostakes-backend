@@ -214,16 +214,17 @@ function accepted(responseStatus: number, body: any) {
   const status = String(body?.status ?? body?.Status ?? "").toLowerCase();
   const message = String(body?.message ?? body?.Message ?? body?.msg ?? "").toLowerCase();
   return (
-    responseStatus >= 200 &&
-    responseStatus < 300 &&
-    (code === 200 ||
+    code === 200 ||
       code === 201 ||
       status === "success" ||
       status === "true" ||
+      status === "200" ||
+      status === "201" ||
       body?.success === true ||
       message.includes("success") ||
       message.includes("submitted") ||
-      message.includes("sent"))
+      message.includes("sent") ||
+      (responseStatus >= 200 && responseStatus < 300 && !message.includes("error"))
   );
 }
 

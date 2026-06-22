@@ -165,6 +165,35 @@ async function getRefujIntegration(platform: keyof typeof REFUJ_PLATFORM_GAMES) 
   };
 }
 
+async function savePlatformAccount(input: {
+  supabaseAdmin: any;
+  userId: string;
+  platform: string;
+  username: string;
+  password: string;
+}) {
+  if (!input.username || !input.password) return;
+  const payload = {
+    user_id: input.userId,
+    platform: input.platform,
+    platform_username: input.username,
+    platform_password: input.password,
+  };
+  const { data: existing, error: existingError } = await input.supabaseAdmin
+    .from("platform_accounts" as never)
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("platform", input.platform)
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+  const query = existing?.id
+    ? input.supabaseAdmin.from("platform_accounts" as never).update(payload as never).eq("id", existing.id)
+    : input.supabaseAdmin.from("platform_accounts" as never).insert(payload as never);
+  const { error } = await query;
+  if (error?.code === "23514" || String(error?.message ?? "").includes("platform_accounts_platform_check")) return;
+  if (error) throw new Error(error.message);
+}
+
 const schema = z.object({
   platform: z.enum([
     "juwa",
@@ -212,6 +241,13 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           const refuj = await getRefujIntegration(platform as keyof typeof REFUJ_PLATFORM_GAMES);
           const existingRow = existing as { juwa_user_id: string; juwa_username: string; juwa_password: string } | null;
           if (existingRow?.juwa_username && existingRow?.juwa_password) {
+            await savePlatformAccount({
+              supabaseAdmin,
+              userId: playerSiteUserId,
+              platform,
+              username: existingRow.juwa_username,
+              password: existingRow.juwa_password,
+            });
             return jsonOk({
               username: existingRow.juwa_username,
               password: existingRow.juwa_password,
@@ -232,6 +268,13 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
                 .update({ juwa_password: polled.password } as never)
                 .eq("site_user_id", playerSiteUserId)
                 .eq("platform", platform);
+              await savePlatformAccount({
+                supabaseAdmin,
+                userId: playerSiteUserId,
+                platform,
+                username: existingRow.juwa_username,
+                password: polled.password,
+              });
               return jsonOk({
                 username: existingRow.juwa_username,
                 password: polled.password,
@@ -306,6 +349,13 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
               .eq("site_user_id", playerSiteUserId)
               .eq("platform", platform)
               .eq("juwa_user_id", registrationId);
+            await savePlatformAccount({
+              supabaseAdmin,
+              userId: playerSiteUserId,
+              platform,
+              username,
+              password: polled.password,
+            });
           }
 
           if (polled.status === "completed" && polled.password) {
