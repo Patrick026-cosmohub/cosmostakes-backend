@@ -263,18 +263,18 @@ function IntegrationCard({ row }: { row: any }) {
             onChange={(e) => setForm((f) => ({ ...f, api_endpoint: e.target.value }))}
           />
         </Field>
-        <Field label="Game username">
+        <Field label="REFUJ agent ID">
           <Input
             type="password"
-            placeholder="••••••••"
+            placeholder="Agent ID for this game"
             value={form.api_key}
             onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))}
           />
         </Field>
-        <Field label="Game password">
+        <Field label="REFUJ agent password">
           <Input
             type="password"
-            placeholder="••••••••"
+            placeholder="Agent password for this game"
             value={form.secret_key}
             onChange={(e) => setForm((f) => ({ ...f, secret_key: e.target.value }))}
           />

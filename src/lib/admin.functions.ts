@@ -945,6 +945,58 @@ function platformKey(value?: string | null) {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+async function listDashboardGameRows(supabase: any) {
+  const { data, error } = await supabase
+    .from("games")
+    .select("id,name,provider,is_active,display_title,sort_order")
+    .order("sort_order")
+    .order("name");
+  if (error) throw new Error(error.message);
+
+  let games = (data ?? []) as Array<{
+    id: string;
+    name: string;
+    provider: string | null;
+    is_active: boolean;
+    display_title?: string | null;
+    sort_order?: number | null;
+  }>;
+
+  const missing = PLAYER_DASHBOARD_PLATFORMS.filter((platform) => {
+    const keys = new Set([platformKey(platform.name), platformKey(platform.provider)]);
+    return !games.some((g) => keys.has(platformKey(g.name)) || keys.has(platformKey(g.provider)));
+  });
+
+  if (missing.length > 0) {
+    const { error: insertError } = await supabase.from("games").insert(
+      missing.map((platform) => ({
+        name: platform.name,
+        provider: platform.provider,
+        display_title: platform.name,
+        sort_order: PLAYER_DASHBOARD_PLATFORMS.findIndex((p) => p.provider === platform.provider),
+        is_active: true,
+        maintenance_mode: false,
+        featured: false,
+        sync_frequency_seconds: 300,
+      })),
+    );
+    if (insertError) throw new Error(insertError.message);
+
+    const refreshed = await supabase
+      .from("games")
+      .select("id,name,provider,is_active,display_title,sort_order")
+      .order("sort_order")
+      .order("name");
+    if (refreshed.error) throw new Error(refreshed.error.message);
+    games = refreshed.data ?? [];
+  }
+
+  return PLAYER_DASHBOARD_PLATFORMS.map((platform) => {
+    const keys = new Set([platformKey(platform.name), platformKey(platform.provider)]);
+    return games.find((g) => keys.has(platformKey(g.name)) || keys.has(platformKey(g.provider)));
+  }).filter(Boolean);
+}
+
 /** Per-platform overview: every active game plus aggregate player + financial stats. */
 export const getPlatformsOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -1172,12 +1224,7 @@ export const listPlatformIntegrations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertSuperAdmin(context);
-    const { data: games, error: gErr } = await context.supabase
-      .from("games")
-      .select("id,name,provider,is_active")
-      .eq("is_active", true)
-      .order("name");
-    if (gErr) throw new Error(gErr.message);
+    const games = await listDashboardGameRows(context.supabase);
     const { data: integrations, error: iErr } = await context.supabase
       .from("platform_integrations")
       .select("*");
@@ -1211,7 +1258,7 @@ export const upsertPlatformIntegration = createServerFn({ method: "POST" })
       secret_key: data.secret_key || null,
       webhook_url: data.webhook_url || null,
       connection_status:
-        data.api_endpoint && data.api_key ? "configured" : "not_configured",
+        data.api_key && data.secret_key ? "configured" : "not_configured",
     };
     const { data: row, error } = await context.supabase
       .from("platform_integrations")
@@ -1243,12 +1290,12 @@ export const testPlatformIntegration = createServerFn({ method: "POST" })
       .maybeSingle();
 
     let status = "failed";
-    let message = "Missing REFUJ game username or game password.";
+    let message = "Missing REFUJ agent ID or agent password.";
     if (integ?.api_key && integ?.secret_key) {
       try {
         await readRefujGameList(integ.api_endpoint);
         status = "connected";
-        message = "REFUJ master key works and game credentials are present.";
+        message = "REFUJ master key works and agent credentials are present.";
       } catch (e: any) {
         status = "error";
         message = e?.message ?? "REFUJ connection failed";
