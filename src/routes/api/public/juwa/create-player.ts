@@ -34,6 +34,14 @@ function generateJuwaPassword(): string {
   return pwd;
 }
 
+function generateRefujRegistrationId(userId: string) {
+  const userPart = userId.replace(/[^a-fA-F0-9]/g, "").slice(0, 10) || "player";
+  const random = new Uint8Array(4);
+  crypto.getRandomValues(random);
+  const randomPart = Array.from(random, (byte) => byte.toString(36).padStart(2, "0")).join("");
+  return `COSMO-${userPart}-${Date.now().toString(36)}-${randomPart}`.slice(0, 48);
+}
+
 // Juwa account rule from their docs: letters, numbers, and underscores.
 const JUWA_ACCOUNT_RE = /^[a-zA-Z][a-zA-Z0-9_]{5,31}$/;
 const REFUJ_ACCOUNT_RE = /^[a-zA-Z][a-zA-Z0-9_]{2,19}$/;
@@ -249,9 +257,18 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           const username = callerAccount && REFUJ_ACCOUNT_RE.test(callerAccount)
             ? callerAccount
             : generateJuwaUsername().replace(/_/g, "").slice(0, 12);
-          const registrationId = `COSMO-REG-${playerSiteUserId}-${Date.now()}`;
+          const registrationId = generateRefujRegistrationId(playerSiteUserId);
           const email = `${username}${Date.now().toString(36)}@player.cosmostakes.net`;
           const nickname = username.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20) || "Player";
+
+          const { error: pendingInsertError } = await supabaseAdmin.from("platform_players" as never).insert({
+            site_user_id: playerSiteUserId,
+            platform,
+            juwa_user_id: registrationId,
+            juwa_username: username,
+            juwa_password: "",
+          } as never);
+          if (pendingInsertError) return jsonError(500, pendingInsertError.message);
 
           try {
             await callRefujRegister({
@@ -266,6 +283,12 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
               apiBase: refuj.apiBase,
             });
           } catch (e) {
+            await supabaseAdmin
+              .from("platform_players" as never)
+              .delete()
+              .eq("site_user_id", playerSiteUserId)
+              .eq("platform", platform)
+              .eq("juwa_user_id", registrationId);
             return jsonError(502, (e as Error).message);
           }
 
@@ -276,18 +299,25 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             apiBase: refuj.apiBase,
           });
 
-          await supabaseAdmin.from("platform_players" as never).insert({
-            site_user_id: playerSiteUserId,
-            platform,
-            juwa_user_id: registrationId,
-            juwa_username: username,
-            juwa_password: polled.status === "completed" ? polled.password : "",
-          } as never);
+          if (polled.status === "completed" && polled.password) {
+            await supabaseAdmin
+              .from("platform_players" as never)
+              .update({ juwa_password: polled.password } as never)
+              .eq("site_user_id", playerSiteUserId)
+              .eq("platform", platform)
+              .eq("juwa_user_id", registrationId);
+          }
 
           if (polled.status === "completed" && polled.password) {
             return jsonOk({ username, password: polled.password, juwa_user_id: registrationId });
           }
           if (polled.status === "failed") {
+            await supabaseAdmin
+              .from("platform_players" as never)
+              .delete()
+              .eq("site_user_id", playerSiteUserId)
+              .eq("platform", platform)
+              .eq("juwa_user_id", registrationId);
             return jsonError(502, polled.reason ?? "REFUJ registration failed");
           }
           return jsonOk({
