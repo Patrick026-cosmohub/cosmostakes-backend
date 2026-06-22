@@ -928,6 +928,23 @@ export const listGames = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
+const PLAYER_DASHBOARD_PLATFORMS = [
+  { name: "Juwa", provider: "juwa" },
+  { name: "Juwa 2", provider: "juwa2" },
+  { name: "Game Vault", provider: "gamevault" },
+  { name: "Orion Stars", provider: "orionstars" },
+  { name: "Fire Kirin", provider: "firekirin" },
+  { name: "Milky Way", provider: "milkyway" },
+  { name: "Panda Master", provider: "pandamaster" },
+  { name: "High Stakes", provider: "highstakes" },
+  { name: "Las Vegas Sweeps", provider: "lasvegassweeps" },
+  { name: "Vblink", provider: "vblink" },
+] as const;
+
+function platformKey(value?: string | null) {
+  return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 /** Per-platform overview: every active game plus aggregate player + financial stats. */
 export const getPlatformsOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -935,7 +952,7 @@ export const getPlatformsOverview = createServerFn({ method: "GET" })
     const { supabase } = context;
     const [{ data: games }, { data: players }, { data: ledger }, { data: pendingDeps }, { data: pendingCash }] =
       await Promise.all([
-        supabase.from("games").select("id,name,provider,is_active").order("name"),
+        supabase.from("games").select("id,name,provider,is_active,display_title,sort_order").order("sort_order").order("name"),
         supabase.from("players").select("id,game_id,status,balance"),
         supabase.from("wallet_ledger").select("amount,type,player:players(game_id)"),
         supabase
@@ -963,12 +980,27 @@ export const getPlatformsOverview = createServerFn({ method: "GET" })
       pendingCashouts: number;
     };
     const map = new Map<string, Stat>();
-    (games ?? []).forEach((g) =>
-      map.set(g.id, {
-        id: g.id,
-        name: g.name,
-        provider: g.provider,
-        is_active: g.is_active,
+
+    const gameToPlatformId = new Map<string, string>();
+    const dbGames = (games ?? []) as Array<{
+      id: string;
+      name: string;
+      provider: string | null;
+      is_active: boolean;
+      display_title?: string | null;
+    }>;
+
+    PLAYER_DASHBOARD_PLATFORMS.forEach((platform) => {
+      const keys = new Set([platformKey(platform.name), platformKey(platform.provider)]);
+      const game = dbGames.find((g) => keys.has(platformKey(g.name)) || keys.has(platformKey(g.provider)));
+      const id = game?.id ?? `dashboard-${platform.provider}`;
+      if (game?.id) gameToPlatformId.set(game.id, id);
+
+      map.set(id, {
+        id,
+        name: platform.name,
+        provider: game?.provider ?? platform.provider,
+        is_active: game?.is_active ?? true,
         players: 0,
         activePlayers: 0,
         balance: 0,
@@ -977,12 +1009,14 @@ export const getPlatformsOverview = createServerFn({ method: "GET" })
         profit: 0,
         pendingDeposits: 0,
         pendingCashouts: 0,
-      }),
-    );
+      });
+    });
 
     (players ?? []).forEach((p) => {
       if (!p.game_id) return;
-      const s = map.get(p.game_id);
+      const platformId = gameToPlatformId.get(p.game_id);
+      if (!platformId) return;
+      const s = map.get(platformId);
       if (!s) return;
       s.players += 1;
       if (p.status === "active") s.activePlayers += 1;
@@ -992,7 +1026,9 @@ export const getPlatformsOverview = createServerFn({ method: "GET" })
     (ledger ?? []).forEach((r: any) => {
       const gid = r.player?.game_id;
       if (!gid) return;
-      const s = map.get(gid);
+      const platformId = gameToPlatformId.get(gid);
+      if (!platformId) return;
+      const s = map.get(platformId);
       if (!s) return;
       const amt = Math.abs(Number(r.amount));
       if (r.type === "deposit") s.in += amt;
@@ -1002,13 +1038,15 @@ export const getPlatformsOverview = createServerFn({ method: "GET" })
     (pendingDeps ?? []).forEach((r: any) => {
       const gid = r.player?.game_id;
       if (!gid) return;
-      const s = map.get(gid);
+      const platformId = gameToPlatformId.get(gid);
+      const s = platformId ? map.get(platformId) : null;
       if (s) s.pendingDeposits += Number(r.amount);
     });
     (pendingCash ?? []).forEach((r: any) => {
       const gid = r.player?.game_id;
       if (!gid) return;
-      const s = map.get(gid);
+      const platformId = gameToPlatformId.get(gid);
+      const s = platformId ? map.get(platformId) : null;
       if (s) s.pendingCashouts += Number(r.amount);
     });
 
