@@ -1,0 +1,249 @@
+import crypto from "node:crypto";
+
+type RefujKind = "deposit" | "cashout";
+
+export type RefujTransferInput = {
+  kind: RefujKind;
+  requestId: string;
+  gameName: string;
+  gameCode?: string | null;
+  gameUser?: string | null;
+  gamePass?: string | null;
+  customerUsername: string;
+  amount: number;
+  apiBase?: string | null;
+};
+
+type RefujTransferResult = {
+  transferId: string;
+  gameCode: string;
+  status: number;
+  raw: unknown;
+};
+
+const DEFAULT_REFUJ_API_BASE = "https://www.refuj.io/api";
+
+const GAME_CODE_MAP: Record<string, string> = {
+  "fire kirin": "FK",
+  firekirin: "FK",
+  "vegas sweeps": "VS",
+  vegassweeps: "VS",
+  "cash ignite": "CI",
+  cashignite: "CI",
+  egame: "EG",
+  "panda master": "PM",
+  pandamaster: "PM",
+  "blue dragon": "BD",
+  bluedragon: "BD",
+  "orion stars": "OS",
+  orionstars: "OS",
+  "ultra panda": "UP",
+  ultrapanda: "UP",
+  "golden treasure": "GT",
+  goldentreasure: "GT",
+  "milky way": "MW",
+  milkyway: "MW",
+  "double up": "DU",
+  doubleup: "DU",
+  "gameroom online": "GO",
+  gameroomonline: "GO",
+  "cash machine": "CM",
+  cashmachine: "CM",
+  "mr.allinone": "MR",
+  "mr allinone": "MR",
+  mrallinone: "MR",
+  mafia: "MF",
+  riveslot: "RS",
+  "mega spin": "MS",
+  megaspin: "MS",
+  "casino royale": "CR",
+  casinoroyale: "CR",
+  "cash frenzy": "CF",
+  cashfrenzy: "CF",
+  acebook: "AB",
+  "ace book": "AB",
+  acebook777: "AB",
+  "vegas roll": "VR",
+  vegasroll: "VR",
+  joker: "JK",
+  joker777: "JK",
+  "lucky star": "LS",
+  luckystar: "LS",
+  moola: "ML",
+};
+
+function env(name: string, fallbackName?: string) {
+  const value = process.env[name]?.trim() || (fallbackName ? process.env[fallbackName]?.trim() : "");
+  return value || "";
+}
+
+function requireEnv(name: string, fallbackName?: string) {
+  const value = env(name, fallbackName);
+  if (!value) throw new Error(`${name}${fallbackName ? ` or ${fallbackName}` : ""} is required for REFUJ.`);
+  return value;
+}
+
+function normalize(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9.]+/g, " ").replace(/\s+/g, " ");
+}
+
+function compact(value: string) {
+  return normalize(value).replace(/\s+/g, "");
+}
+
+export function isSpecialGameProvider(gameName?: string | null, provider?: string | null) {
+  const haystack = `${normalize(gameName ?? "")} ${normalize(provider ?? "")}`;
+  return /juwa|juwa\s*2|game\s*vault|gamevault|vblink|v\s*blink/.test(haystack);
+}
+
+function resolveGameCode(gameName: string, configured?: string | null) {
+  const candidates = [configured, gameName].filter(Boolean) as string[];
+  for (const candidate of candidates) {
+    const direct = GAME_CODE_MAP[normalize(candidate)] ?? GAME_CODE_MAP[compact(candidate)];
+    if (direct) return direct;
+  }
+
+  const explicit = configured?.trim();
+  if (explicit && /^[A-Za-z0-9_.-]{1,8}$/.test(explicit)) return explicit.toUpperCase();
+
+  throw new Error(`No REFUJ game acronym is configured for ${gameName}. Set the game provider to the REFUJ code.`);
+}
+
+function apiBase(configured?: string | null) {
+  const raw = configured?.trim() || env("REFUJ_API_BASE_URL") || DEFAULT_REFUJ_API_BASE;
+  const clean = raw.replace(/\/+$/, "");
+  return clean.endsWith("/api") ? clean : `${clean}/api`;
+}
+
+function masterConfig() {
+  const secretKey = requireEnv("REFUJ_SECRET_KEY", "REFUJ_API_KEY");
+  const passphrase = requireEnv("REFUJ_ENCRYPTION_PASSPHRASE");
+  const gatewayKey = env("REFUJ_GATEWAY_KEY");
+  if (!/^[a-f0-9]{64}$/i.test(passphrase)) {
+    throw new Error("REFUJ_ENCRYPTION_PASSPHRASE must be a 64-character hex string.");
+  }
+  return { secretKey, passphrase, gatewayKey };
+}
+
+export function encryptForRefuj(value: string, passphrase = requireEnv("REFUJ_ENCRYPTION_PASSPHRASE")) {
+  if (!/^[a-f0-9]{64}$/i.test(passphrase)) {
+    throw new Error("REFUJ_ENCRYPTION_PASSPHRASE must be a 64-character hex string.");
+  }
+
+  const key = Buffer.from(passphrase, "hex");
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const plaintext = Buffer.from(JSON.stringify(value)).toString("base64");
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  return Buffer.from(
+    JSON.stringify({
+      iv: iv.toString("base64"),
+      data: encrypted.toString("base64"),
+      tag: tag.toString("base64"),
+    }),
+  ).toString("base64");
+}
+
+function headers(gatewayKey: string) {
+  const h: Record<string, string> = {
+    "content-type": "application/json",
+    accept: "application/json",
+  };
+  if (gatewayKey) h["X-Refuj-Gateway-Key"] = gatewayKey;
+  return h;
+}
+
+async function readResponse(response: Response) {
+  const text = await response.text();
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return text;
+  }
+}
+
+function accepted(responseStatus: number, body: any) {
+  const code = Number(body?.code ?? body?.Code ?? body?.status_code ?? body?.Status_code);
+  const status = String(body?.status ?? body?.Status ?? "").toLowerCase();
+  const message = String(body?.message ?? body?.Message ?? body?.msg ?? "").toLowerCase();
+  return (
+    responseStatus >= 200 &&
+    responseStatus < 300 &&
+    (code === 200 ||
+      code === 201 ||
+      status === "success" ||
+      status === "true" ||
+      body?.success === true ||
+      message.includes("success"))
+  );
+}
+
+function errorMessage(responseStatus: number, body: any) {
+  if (body && typeof body === "object") {
+    return String(body.message ?? body.Message ?? body.error ?? body.Error ?? `REFUJ request failed with HTTP ${responseStatus}`);
+  }
+  return `REFUJ request failed with HTTP ${responseStatus}: ${String(body).slice(0, 180)}`;
+}
+
+async function postRefuj(path: string, payload: Record<string, unknown>, configuredBase?: string | null) {
+  const { gatewayKey } = masterConfig();
+  const response = await fetch(`${apiBase(configuredBase)}${path}`, {
+    method: "POST",
+    headers: headers(gatewayKey),
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(60_000),
+  });
+  const body = await readResponse(response);
+  if (!accepted(response.status, body)) throw new Error(errorMessage(response.status, body));
+  return { status: response.status, body };
+}
+
+export async function readRefujGameList(configuredBase?: string | null) {
+  const { secretKey, gatewayKey } = masterConfig();
+  const url = new URL(`${apiBase(configuredBase)}/credits/read_game_list`);
+  url.searchParams.set("secret_key", secretKey);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: headers(gatewayKey),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const body = await readResponse(response);
+  if (!accepted(response.status, body)) throw new Error(errorMessage(response.status, body));
+  return body;
+}
+
+export async function callRefujTransfer(input: RefujTransferInput): Promise<RefujTransferResult> {
+  const { secretKey, passphrase } = masterConfig();
+  const gameUser = input.gameUser?.trim() || env("REFUJ_DEFAULT_GAME_USER");
+  const gamePass = input.gamePass?.trim() || env("REFUJ_DEFAULT_GAME_PASS");
+  if (!gameUser || !gamePass) {
+    throw new Error(`REFUJ game username/password is missing for ${input.gameName}.`);
+  }
+
+  if (input.kind === "cashout" && env("REFUJ_ENABLE_CASHOUTS").toLowerCase() !== "true") {
+    throw new Error("REFUJ cashouts are disabled. Set REFUJ_ENABLE_CASHOUTS=true only after confirming the withdraw endpoint.");
+  }
+
+  const gameCode = resolveGameCode(input.gameName, input.gameCode);
+  const amount = Math.round(Number(input.amount));
+  const transferId = `${input.kind === "deposit" ? "COSMO-LOAD" : "COSMO-REDEEM"}-${input.requestId}`;
+  const common = {
+    secret_key: secretKey,
+    gaming_site: gameCode,
+    amount,
+    game_user: encryptForRefuj(gameUser, passphrase),
+    game_pass: encryptForRefuj(gamePass, passphrase),
+    customer_username: input.customerUsername,
+  };
+
+  const payload =
+    input.kind === "deposit"
+      ? { ...common, deposit_id: transferId, bonus: 0 }
+      : { ...common, withdraw_id: transferId };
+
+  const path = input.kind === "deposit" ? "/credits/add_credit" : "/credits/withdraw_credit";
+  const { status, body } = await postRefuj(path, payload, input.apiBase);
+  return { transferId, gameCode, status, raw: body };
+}

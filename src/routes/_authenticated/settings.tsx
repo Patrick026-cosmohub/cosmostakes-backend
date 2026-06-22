@@ -256,14 +256,14 @@ function IntegrationCard({ row }: { row: any }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Field label="API endpoint URL">
+        <Field label="REFUJ API base URL">
           <Input
-            placeholder="https://api.example.com/v1"
+            placeholder="https://www.refuj.io/api"
             value={form.api_endpoint}
             onChange={(e) => setForm((f) => ({ ...f, api_endpoint: e.target.value }))}
           />
         </Field>
-        <Field label="API key">
+        <Field label="Game username">
           <Input
             type="password"
             placeholder="••••••••"
@@ -271,7 +271,7 @@ function IntegrationCard({ row }: { row: any }) {
             onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))}
           />
         </Field>
-        <Field label="Secret key">
+        <Field label="Game password">
           <Input
             type="password"
             placeholder="••••••••"

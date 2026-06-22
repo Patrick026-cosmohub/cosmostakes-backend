@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { callRefujTransfer, isSpecialGameProvider, readRefujGameList } from "./refuj.server";
 
 /** Returns roles + profile for the current signed-in staff member. */
 export const getMe = createServerFn({ method: "GET" })
@@ -486,6 +487,42 @@ export const listRequests = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+async function maybeRunRefujForRequest(supabase: any, kind: "deposit" | "cashout", req: any) {
+  if (kind === "cashout" && process.env.REFUJ_ENABLE_CASHOUTS !== "true") return null;
+
+  const { data: player, error: playerError } = await supabase
+    .from("players")
+    .select("id,username,full_name,email,game_id,game:games(id,name,provider)")
+    .eq("id", req.player_id)
+    .maybeSingle();
+  if (playerError) throw new Error(playerError.message);
+
+  const game = Array.isArray(player?.game) ? player.game[0] : player?.game;
+  if (!player?.game_id || !game?.name) return null;
+  if (isSpecialGameProvider(game.name, game.provider)) return null;
+
+  const { data: integration, error: integrationError } = await supabase
+    .from("platform_integrations")
+    .select("api_endpoint,api_key,secret_key")
+    .eq("game_id", player.game_id)
+    .maybeSingle();
+  if (integrationError) throw new Error(integrationError.message);
+
+  const result = await callRefujTransfer({
+    kind,
+    requestId: req.id,
+    gameName: game.name,
+    gameCode: game.provider,
+    gameUser: integration?.api_key,
+    gamePass: integration?.secret_key,
+    customerUsername: player.username || player.full_name || player.email || req.player_id,
+    amount: Number(req.amount),
+    apiBase: integration?.api_endpoint,
+  });
+
+  return `REFUJ ${kind} ${result.transferId} accepted (${result.gameCode}).`;
+}
+
 /** Approve / reject a deposit or cashout. Writes audit log + ledger. */
 export const decideRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -508,13 +545,39 @@ export const decideRequest = createServerFn({ method: "POST" })
     if (!req) throw new Error("Request not found");
     if (req.status !== "pending") throw new Error(`Request is already ${req.status}`);
 
+    let refujNote: string | null = null;
+    if (data.decision === "approved") {
+      try {
+        refujNote = await maybeRunRefujForRequest(supabase, data.kind, req);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        await supabase
+          .from(table)
+          .update({
+            status: "failed",
+            processed_at: new Date().toISOString(),
+            processed_by: userId,
+            notes: [data.note ?? req.notes, `REFUJ failed: ${message}`].filter(Boolean).join("\n"),
+          })
+          .eq("id", data.id);
+        await supabase.from("audit_logs").insert({
+          staff_id: userId,
+          action: `${data.kind}.refuj_failed`,
+          entity_type: data.kind,
+          entity_id: data.id,
+          metadata: { amount: req.amount, player_id: req.player_id, error: message },
+        });
+        throw new Error(`REFUJ failed: ${message}`);
+      }
+    }
+
     const { error: updErr } = await supabase
       .from(table)
       .update({
         status: data.decision,
         processed_at: new Date().toISOString(),
         processed_by: userId,
-        notes: data.note ?? req.notes,
+        notes: [data.note ?? req.notes, refujNote].filter(Boolean).join("\n") || null,
       })
       .eq("id", data.id);
     if (updErr) throw new Error(updErr.message);
@@ -548,7 +611,7 @@ export const decideRequest = createServerFn({ method: "POST" })
       action: `${data.kind}.${data.decision}`,
       entity_type: data.kind,
       entity_id: data.id,
-      metadata: { amount: req.amount, player_id: req.player_id, note: data.note ?? null },
+      metadata: { amount: req.amount, player_id: req.player_id, note: data.note ?? null, refuj: refujNote },
     });
     return { ok: true };
   });
@@ -1148,29 +1211,15 @@ export const testPlatformIntegration = createServerFn({ method: "POST" })
       .maybeSingle();
 
     let status = "failed";
-    let message = "Missing API endpoint or API key.";
-    if (integ?.api_endpoint && integ?.api_key) {
+    let message = "Missing REFUJ game username or game password.";
+    if (integ?.api_key && integ?.secret_key) {
       try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 8000);
-        const res = await fetch(integ.api_endpoint, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${integ.api_key}` },
-          signal: ctrl.signal,
-        }).catch((e) => {
-          throw e;
-        });
-        clearTimeout(t);
-        if (res.ok) {
-          status = "connected";
-          message = `OK (HTTP ${res.status})`;
-        } else {
-          status = "error";
-          message = `HTTP ${res.status}`;
-        }
+        await readRefujGameList(integ.api_endpoint);
+        status = "connected";
+        message = "REFUJ master key works and game credentials are present.";
       } catch (e: any) {
         status = "error";
-        message = e?.message ?? "Connection failed";
+        message = e?.message ?? "REFUJ connection failed";
       }
     }
 
