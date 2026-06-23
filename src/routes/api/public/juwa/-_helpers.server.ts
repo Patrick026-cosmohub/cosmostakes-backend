@@ -14,28 +14,7 @@ export type JuwaCreds = {
   secretKey: string;
 };
 
-export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null> {
-  if (platform === "juwa") {
-    const baseUrl = (process.env.JUWA_BASE_URL ?? process.env.JUWA_API_URL)?.trim();
-    const agentId = process.env.JUWA_AGENT_ID?.trim();
-    const secretKey = process.env.JUWA_SECRET_KEY?.trim();
-    if (!baseUrl || !agentId || !secretKey) return null;
-    return { baseUrl, agentId, secretKey };
-  }
-  if (platform === "juwa2") {
-    const baseUrl = (process.env.JUWA2_BASE_URL ?? process.env.JUWA2_API_URL)?.trim();
-    const agentId = process.env.JUWA2_AGENT_ID?.trim();
-    const secretKey = process.env.JUWA2_SECRET_KEY?.trim();
-    if (!baseUrl || !agentId || !secretKey) return null;
-    return { baseUrl, agentId, secretKey };
-  }
-  if (platform === "gamevault") {
-    const baseUrl = (process.env.GAMEVAULT_BASE_URL ?? process.env.GAMEVAULT_API_URL)?.trim();
-    const agentId = process.env.GAMEVAULT_AGENT_ID?.trim();
-    const secretKey = process.env.GAMEVAULT_SECRET_KEY?.trim();
-    if (!baseUrl || !agentId || !secretKey) return null;
-    return { baseUrl, agentId, secretKey };
-  }
+async function getStoredCreds(platform: string): Promise<JuwaCreds | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("platform_credentials" as never)
@@ -43,8 +22,38 @@ export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null>
     .eq("platform", platform)
     .maybeSingle();
   if (error || !data) return null;
-  const row = data as { base_url: string; agent_id: string; secret_key: string };
-  return { baseUrl: row.base_url, agentId: row.agent_id, secretKey: row.secret_key };
+  const row = data as { base_url?: string | null; agent_id?: string | null; secret_key?: string | null };
+  if (!row.base_url?.trim() || !row.agent_id?.trim() || !row.secret_key?.trim()) return null;
+  return {
+    baseUrl: row.base_url.trim(),
+    agentId: row.agent_id.trim(),
+    secretKey: row.secret_key.trim(),
+  };
+}
+
+export async function getCreds(platform: PlatformKey): Promise<JuwaCreds | null> {
+  if (platform === "juwa") {
+    const baseUrl = (process.env.JUWA_BASE_URL ?? process.env.JUWA_API_URL)?.trim();
+    const agentId = process.env.JUWA_AGENT_ID?.trim();
+    const secretKey = process.env.JUWA_SECRET_KEY?.trim();
+    if (!baseUrl || !agentId || !secretKey) return getStoredCreds(platform);
+    return { baseUrl, agentId, secretKey };
+  }
+  if (platform === "juwa2") {
+    const baseUrl = (process.env.JUWA2_BASE_URL ?? process.env.JUWA2_API_URL)?.trim();
+    const agentId = process.env.JUWA2_AGENT_ID?.trim();
+    const secretKey = process.env.JUWA2_SECRET_KEY?.trim();
+    if (!baseUrl || !agentId || !secretKey) return getStoredCreds(platform);
+    return { baseUrl, agentId, secretKey };
+  }
+  if (platform === "gamevault") {
+    const baseUrl = (process.env.GAMEVAULT_BASE_URL ?? process.env.GAMEVAULT_API_URL)?.trim();
+    const agentId = process.env.GAMEVAULT_AGENT_ID?.trim();
+    const secretKey = process.env.GAMEVAULT_SECRET_KEY?.trim();
+    if (!baseUrl || !agentId || !secretKey) return getStoredCreds(platform);
+    return { baseUrl, agentId, secretKey };
+  }
+  return getStoredCreds(platform);
 }
 
 export function checkApiKey(request: Request): Response | null {

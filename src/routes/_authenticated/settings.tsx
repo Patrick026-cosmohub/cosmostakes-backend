@@ -240,6 +240,35 @@ function IntegrationCard({ row }: { row: any }) {
   });
 
   const status = integ.connection_status ?? "not_configured";
+  const provider = String(row.game.provider ?? "").toLowerCase();
+  const isVblink = provider === "vblink";
+  const isJuwaStyle = ["juwa", "juwa2", "gamevault"].includes(provider);
+  const labels = isVblink
+    ? {
+        endpoint: "VBlink API base URL",
+        endpointPlaceholder: "https://...",
+        key: "VBlink app ID",
+        keyPlaceholder: "App ID",
+        secret: "VBlink app secret",
+        secretPlaceholder: "App secret",
+      }
+    : isJuwaStyle
+      ? {
+          endpoint: "API base URL",
+          endpointPlaceholder: "https://...",
+          key: "Agent ID",
+          keyPlaceholder: "Agent ID",
+          secret: "Secret key",
+          secretPlaceholder: "Secret key",
+        }
+      : {
+          endpoint: "REFUJ API base URL",
+          endpointPlaceholder: "https://www.refuj.io/api",
+          key: "REFUJ agent ID",
+          keyPlaceholder: "Agent ID for this game",
+          secret: "REFUJ agent password",
+          secretPlaceholder: "Agent password for this game",
+        };
 
   return (
     <Card className="bg-surface border-border">
@@ -256,25 +285,25 @@ function IntegrationCard({ row }: { row: any }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Field label="REFUJ API base URL">
+        <Field label={labels.endpoint}>
           <Input
-            placeholder="https://www.refuj.io/api"
+            placeholder={labels.endpointPlaceholder}
             value={form.api_endpoint}
             onChange={(e) => setForm((f) => ({ ...f, api_endpoint: e.target.value }))}
           />
         </Field>
-        <Field label="REFUJ agent ID">
+        <Field label={labels.key}>
           <Input
             type="password"
-            placeholder="Agent ID for this game"
+            placeholder={labels.keyPlaceholder}
             value={form.api_key}
             onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))}
           />
         </Field>
-        <Field label="REFUJ agent password">
+        <Field label={labels.secret}>
           <Input
             type="password"
-            placeholder="Agent password for this game"
+            placeholder={labels.secretPlaceholder}
             value={form.secret_key}
             onChange={(e) => setForm((f) => ({ ...f, secret_key: e.target.value }))}
           />

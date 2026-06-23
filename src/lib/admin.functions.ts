@@ -1082,6 +1082,8 @@ const PLAYER_DASHBOARD_PLATFORMS = [
   { name: "Vblink", provider: "vblink" },
 ] as const;
 
+const PLATFORM_CREDENTIAL_PROVIDERS = new Set(["juwa", "juwa2", "gamevault", "vblink"]);
+
 function platformKey(value?: string | null) {
   return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
@@ -1370,10 +1372,28 @@ export const listPlatformIntegrations = createServerFn({ method: "GET" })
       .from("platform_integrations")
       .select("*");
     if (iErr) throw new Error(iErr.message);
+    const { data: platformCredentials, error: cErr } = await context.supabase
+      .from("platform_credentials" as never)
+      .select("*");
+    if (cErr) throw new Error(cErr.message);
     const byGame = new Map((integrations ?? []).map((r: any) => [r.game_id, r]));
+    const byPlatform = new Map((platformCredentials ?? []).map((r: any) => [r.platform, r]));
     return (games ?? []).map((g: any) => ({
       game: g,
-      integration: byGame.get(g.id) ?? null,
+      integration: PLATFORM_CREDENTIAL_PROVIDERS.has(g.provider)
+        ? (() => {
+            const creds = byPlatform.get(g.provider);
+            if (!creds) return byGame.get(g.id) ?? null;
+            return {
+              ...(byGame.get(g.id) ?? {}),
+              api_endpoint: creds.base_url,
+              api_key: creds.agent_id,
+              secret_key: creds.secret_key,
+              connection_status: "configured",
+              updated_at: creds.updated_at,
+            };
+          })()
+        : byGame.get(g.id) ?? null,
     }));
   });
 
@@ -1392,6 +1412,15 @@ export const upsertPlatformIntegration = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context);
+    const { data: game, error: gameError } = await context.supabase
+      .from("games")
+      .select("id,name,provider")
+      .eq("id", data.game_id)
+      .maybeSingle();
+    if (gameError) throw new Error(gameError.message);
+    if (!game) throw new Error("Game not found");
+
+    const provider = (game.provider ?? "").toLowerCase();
     const payload = {
       game_id: data.game_id,
       api_endpoint: data.api_endpoint || null,
@@ -1407,12 +1436,32 @@ export const upsertPlatformIntegration = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    if (PLATFORM_CREDENTIAL_PROVIDERS.has(provider)) {
+      if (payload.api_endpoint && payload.api_key && payload.secret_key) {
+        const { error: credError } = await context.supabase
+          .from("platform_credentials" as never)
+          .upsert({
+            platform: provider,
+            base_url: payload.api_endpoint,
+            agent_id: payload.api_key,
+            secret_key: payload.secret_key,
+          } as never, { onConflict: "platform" });
+        if (credError) throw new Error(credError.message);
+      } else {
+        await context.supabase
+          .from("platform_credentials" as never)
+          .delete()
+          .eq("platform", provider);
+      }
+    }
+
     await context.supabase.from("audit_logs").insert({
       staff_id: context.userId,
       action: "settings.integration.update",
       entity_type: "platform_integration",
       entity_id: row.id,
-      metadata: { game_id: data.game_id },
+      metadata: { game_id: data.game_id, provider },
     });
     return row;
   });
@@ -1429,10 +1478,27 @@ export const testPlatformIntegration = createServerFn({ method: "POST" })
       .select("*")
       .eq("game_id", data.game_id)
       .maybeSingle();
+    const { data: game, error: gameError } = await context.supabase
+      .from("games")
+      .select("provider,name")
+      .eq("id", data.game_id)
+      .maybeSingle();
+    if (gameError) throw new Error(gameError.message);
+
+    const provider = (game?.provider ?? "").toLowerCase();
 
     let status = "failed";
     let message = "Missing REFUJ agent ID or agent password.";
-    if (integ?.api_key && integ?.secret_key) {
+    if (PLATFORM_CREDENTIAL_PROVIDERS.has(provider)) {
+      if (integ?.api_endpoint && integ?.api_key && integ?.secret_key) {
+        status = "connected";
+        message = provider === "vblink"
+          ? "VBlink credentials are saved for the relay."
+          : "Platform credentials are saved for the relay.";
+      } else {
+        message = "Missing API base URL, agent/app ID, or secret.";
+      }
+    } else if (integ?.api_key && integ?.secret_key) {
       try {
         await readRefujGameList(integ.api_endpoint);
         status = "connected";
