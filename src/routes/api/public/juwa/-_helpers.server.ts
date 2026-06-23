@@ -113,10 +113,11 @@ export async function juwaCall<T = Record<string, unknown>>(
 
   const url = creds.baseUrl.replace(/\/$/, "") + path;
   const sentFields = Object.fromEntries(form.entries());
+  const logFields = { ...sentFields, token: "***" };
   if (path === "/api/external/addUser") {
-    console.log("[juwa addUser] outgoing form:", sentFields);
+    console.log("[juwa addUser] outgoing form:", logFields);
   } else {
-    console.error("[juwa] →", url, JSON.stringify(sentFields));
+    console.error("[juwa] ->", url, JSON.stringify(logFields));
   }
   const relayUrl = process.env.RELAY_URL?.trim();
   const relaySecret = process.env.RELAY_SECRET?.trim();
@@ -143,7 +144,7 @@ export async function juwaCall<T = Record<string, unknown>>(
   if (path === "/api/external/addUser") {
     console.log("[juwa addUser] raw response:", res.status, text);
   } else {
-    console.error("[juwa] ←", res.status, text);
+    console.error("[juwa] <-", res.status, text);
   }
   let body: { code?: number; msg?: string; data?: T };
   try {
@@ -192,6 +193,7 @@ export function randomAlnum(len: number): string {
 
 export function randomOrderId(prefix: string): string {
   const marker = prefix === "wd" ? "2" : "1";
+  const now = Date.now() % 1_000_000;
   const random = crypto.getRandomValues(new Uint32Array(1))[0] % 1000;
-  return `${marker}${Date.now()}${random.toString().padStart(3, "0")}`;
+  return `${marker}${now.toString().padStart(6, "0")}${random.toString().padStart(3, "0")}`;
 }
