@@ -165,18 +165,32 @@ async function handle(request: Request, type: "recharge" | "withdraw", path: str
   if (!creds) return jsonError(400, "platform not configured");
 
   try {
-    const data = await juwaCall<{
+    let finalOrderId = orderId;
+    let data: {
       user_balance?: number | string;
       agent_balance?: number | string;
       transaction_id?: string | number;
-    }>(creds, path, { user_id: juwaUserId, amount, order_id: orderId });
+    };
+
+    try {
+      data = await juwaCall(creds, path, { user_id: juwaUserId, amount, order_id: finalOrderId });
+    } catch (e) {
+      const err = e as Error & { code?: number };
+      if (type !== "recharge" || (err.code !== 10 && err.code !== 21)) {
+        throw e;
+      }
+
+      await juwaCall(creds, "/api/external/playerOffline", { user_id: juwaUserId });
+      finalOrderId = randomOrderId(prefix);
+      data = await juwaCall(creds, path, { user_id: juwaUserId, amount, order_id: finalOrderId });
+    }
 
     await supabaseAdmin.from("platform_transactions" as never).insert({
       site_user_id: playerSiteUserId,
       platform,
       type,
       amount,
-      order_id: orderId,
+      order_id: finalOrderId,
       juwa_transaction_id: data.transaction_id ? String(data.transaction_id) : null,
       user_balance: data.user_balance != null ? Number(data.user_balance) : null,
       status: "success",
@@ -185,7 +199,7 @@ async function handle(request: Request, type: "recharge" | "withdraw", path: str
     return jsonOk({
       user_balance: data.user_balance,
       transaction_id: data.transaction_id,
-      order_id: orderId,
+      order_id: finalOrderId,
     });
   } catch (e) {
     const err = e as Error;
