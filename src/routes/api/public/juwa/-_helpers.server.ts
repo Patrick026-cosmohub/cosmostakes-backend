@@ -182,5 +182,7 @@ export function randomAlnum(len: number): string {
 }
 
 export function randomOrderId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${randomString(8)}`;
+  const marker = prefix === "wd" ? "2" : "1";
+  const random = crypto.getRandomValues(new Uint32Array(1))[0] % 1000;
+  return `${marker}${Date.now()}${random.toString().padStart(3, "0")}`;
 }

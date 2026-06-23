@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedWalletToolsRouteImport } from './routes/_authenticated/wallet-tools'
 import { Route as AuthenticatedVipRouteImport } from './routes/_authenticated/vip'
 import { Route as AuthenticatedTransactionsRouteImport } from './routes/_authenticated/transactions'
 import { Route as AuthenticatedSystemRouteImport } from './routes/_authenticated/system'
@@ -60,6 +61,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedWalletToolsRoute =
+  AuthenticatedWalletToolsRouteImport.update({
+    id: '/wallet-tools',
+    path: '/wallet-tools',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedVipRoute = AuthenticatedVipRouteImport.update({
   id: '/vip',
   path: '/vip',
@@ -259,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
+  '/wallet-tools': typeof AuthenticatedWalletToolsRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
@@ -296,6 +304,7 @@ export interface FileRoutesByTo {
   '/system': typeof AuthenticatedSystemRoute
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
+  '/wallet-tools': typeof AuthenticatedWalletToolsRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
@@ -335,6 +344,7 @@ export interface FileRoutesById {
   '/_authenticated/system': typeof AuthenticatedSystemRoute
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/vip': typeof AuthenticatedVipRoute
+  '/_authenticated/wallet-tools': typeof AuthenticatedWalletToolsRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
@@ -374,6 +384,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/transactions'
     | '/vip'
+    | '/wallet-tools'
     | '/api/public/outbound-ip'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
@@ -411,6 +422,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/transactions'
     | '/vip'
+    | '/wallet-tools'
     | '/api/public/outbound-ip'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
@@ -449,6 +461,7 @@ export interface FileRouteTypes {
     | '/_authenticated/system'
     | '/_authenticated/transactions'
     | '/_authenticated/vip'
+    | '/_authenticated/wallet-tools'
     | '/api/public/outbound-ip'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
@@ -499,6 +512,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/wallet-tools': {
+      id: '/_authenticated/wallet-tools'
+      path: '/wallet-tools'
+      fullPath: '/wallet-tools'
+      preLoaderRoute: typeof AuthenticatedWalletToolsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/vip': {
       id: '/_authenticated/vip'
@@ -758,6 +778,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSystemRoute: typeof AuthenticatedSystemRoute
   AuthenticatedTransactionsRoute: typeof AuthenticatedTransactionsRoute
   AuthenticatedVipRoute: typeof AuthenticatedVipRoute
+  AuthenticatedWalletToolsRoute: typeof AuthenticatedWalletToolsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -784,6 +805,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSystemRoute: AuthenticatedSystemRoute,
   AuthenticatedTransactionsRoute: AuthenticatedTransactionsRoute,
   AuthenticatedVipRoute: AuthenticatedVipRoute,
+  AuthenticatedWalletToolsRoute: AuthenticatedWalletToolsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

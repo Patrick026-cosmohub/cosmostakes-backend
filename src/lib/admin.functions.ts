@@ -521,6 +521,12 @@ async function maybeRunRefujForDeposit(supabase: any, req: any) {
   return `REFUJ deposit ${result.transferId} accepted (${result.gameCode}).`;
 }
 
+function requestedProfileCurrency(req: any): "gold" | "sweeps" {
+  const notes = String(req?.notes ?? "");
+  const match = notes.match(/^currency=(gold|sweeps)$/im);
+  return match?.[1] === "gold" ? "gold" : "sweeps";
+}
+
 /** Approve / reject a deposit or cashout. Writes audit log + ledger. */
 export const decideRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -569,6 +575,43 @@ export const decideRequest = createServerFn({ method: "POST" })
       }
     }
 
+    if (
+      data.decision === "approved" &&
+      data.kind === "cashout" &&
+      String(req.notes ?? "").includes("platform_redeem_request")
+    ) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: profile } = await supabaseAdmin
+        .from("profiles" as never)
+        .select("id")
+        .eq("id", req.player_id)
+        .maybeSingle();
+      if (profile) {
+        const delta = Number(req.amount);
+        const currency = requestedProfileCurrency(req);
+        const creditReason = `manual redeem approval: ${req.destination ?? "game redeem"}`;
+        const { data: existingCredit, error: existingCreditError } = await supabaseAdmin
+          .from("wallet_transactions" as never)
+          .select("id")
+          .eq("user_id", req.player_id)
+          .eq("currency", currency)
+          .eq("amount", delta)
+          .filter("metadata->>reason", "eq", creditReason)
+          .maybeSingle();
+        if (existingCreditError) throw new Error(existingCreditError.message);
+        if (!existingCredit) {
+          const { error: profileCreditError } = await supabaseAdmin.rpc("admin_adjust_profile_wallet" as never, {
+            p_user_id: req.player_id,
+            p_currency: currency,
+            p_delta: delta,
+            p_reason: creditReason,
+            p_staff_id: userId,
+          } as never);
+          if (profileCreditError) throw new Error(profileCreditError.message);
+        }
+      }
+    }
+
     const { error: updErr } = await supabase
       .from(table)
       .update({
@@ -588,6 +631,7 @@ export const decideRequest = createServerFn({ method: "POST" })
       const delta = Number(req.amount);
       const next = current + delta;
       await supabase.from("players").update({ balance: next }).eq("id", req.player_id);
+
       await supabase.from("wallet_ledger").insert({
         player_id: req.player_id,
         type: "deposit",
@@ -652,6 +696,103 @@ export const adjustWallet = createServerFn({ method: "POST" })
       metadata: { amount: data.amount, reason: data.reason, username: player.username },
     });
     return { ok: true, balance: next };
+  });
+
+/** Player-dashboard wallet search for manual test credits/debits. */
+export const searchPlayerWallets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ q: z.string().max(120).default("") }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: canFinance } = await supabase.rpc("can_handle_finance", { _user_id: userId });
+    if (!canFinance) throw new Error("Forbidden: finance role required");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let query = supabaseAdmin
+      .from("profiles" as never)
+      .select("id,first_name,last_name,email,phone,gold_coins,sweeps_coins,onboarded_at")
+      .order("onboarded_at", { ascending: false })
+      .limit(50);
+    const q = data.q.trim();
+    if (q) {
+      const like = `%${q}%`;
+      query = query.or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},phone.ilike.${like}`);
+    }
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+/** Manual adjustment for the player dashboard Cosmo wallet. Finance-only. */
+export const adjustPlayerDashboardWallet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        user_id: z.string().uuid(),
+        currency: z.enum(["sweeps", "gold"]),
+        kind: z.enum(["credit", "debit"]),
+        amount: z.number().positive().max(1_000_000),
+        reason: z.string().min(3).max(500),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: canFinance } = await supabase.rpc("can_handle_finance", { _user_id: userId });
+    if (!canFinance) throw new Error("Forbidden: finance role required");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles" as never)
+      .select("id,email,first_name,last_name,gold_coins,sweeps_coins")
+      .eq("id", data.user_id)
+      .maybeSingle();
+    if (profileError || !profile) throw new Error("Player profile not found");
+
+    const row = profile as {
+      id: string;
+      email: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      gold_coins: number | string | null;
+      sweeps_coins: number | string | null;
+    };
+    const column = data.currency === "gold" ? "gold_coins" : "sweeps_coins";
+    const current = Number(row[column] ?? 0);
+    const delta = data.kind === "credit" ? data.amount : -data.amount;
+    const next = +(current + delta).toFixed(2);
+    if (next < 0) throw new Error("Adjustment would result in negative balance");
+
+    const { data: adjustedRows, error: adjustError } = await supabaseAdmin.rpc(
+      "admin_adjust_profile_wallet" as never,
+      {
+        p_user_id: data.user_id,
+        p_currency: data.currency,
+        p_delta: delta,
+        p_reason: data.reason,
+        p_staff_id: userId,
+      } as never,
+    );
+    if (adjustError) throw new Error(adjustError.message);
+    const adjusted = Array.isArray(adjustedRows) ? adjustedRows[0] : adjustedRows;
+    const finalBalance = Number((adjusted as { balance?: number | string } | null)?.balance ?? next);
+
+    await supabase.from("audit_logs").insert({
+      staff_id: userId,
+      action: `player_wallet.${data.kind}`,
+      entity_type: "profile",
+      entity_id: data.user_id,
+      metadata: {
+        currency: data.currency,
+        amount: data.amount,
+        balance_after: finalBalance,
+        reason: data.reason,
+        email: row.email,
+      },
+    });
+
+    return { ok: true, balance: finalBalance, currency: data.currency };
   });
 
 /** Audit log feed with filters. */

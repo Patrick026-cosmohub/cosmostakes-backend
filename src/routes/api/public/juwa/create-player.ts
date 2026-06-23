@@ -7,7 +7,9 @@ import {
   jsonOk,
   juwaCall,
 } from "./-_helpers.server";
+import { getVblinkConfig, vblinkCall } from "./-_vblink.server";
 import { callRefujRegister, decryptFromRefuj, readRefujRegistrationRequests } from "@/lib/refuj.server";
+import { REFUJ_PLATFORM_GAMES, getRefujIntegration, isRefujPlatform } from "./-_refuj-platforms.server";
 
 function generateJuwaUsername(): string {
   const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -45,23 +47,31 @@ function generateRefujRegistrationId(userId: string) {
 // Juwa account rule from their docs: letters, numbers, and underscores.
 const JUWA_ACCOUNT_RE = /^[a-zA-Z][a-zA-Z0-9_]{5,31}$/;
 const REFUJ_ACCOUNT_RE = /^[a-zA-Z][a-zA-Z0-9_]{2,19}$/;
-
-const REFUJ_PLATFORM_GAMES: Record<string, { name: string; provider: string }> = {
-  firekirin: { name: "Fire Kirin", provider: "firekirin" },
-  milkyway: { name: "Milky Way", provider: "milkyway" },
-  orionstars: { name: "Orion Stars", provider: "orionstars" },
-  pandamaster: { name: "Panda Master", provider: "pandamaster" },
-  lasvegassweeps: { name: "Las Vegas Sweeps", provider: "lasvegassweeps" },
-  highstakes: { name: "High Stakes", provider: "highstakes" },
-};
-
-function compact(value?: string | null) {
-  return (value ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
+const VBLINK_ACCOUNT_RE = /^[a-zA-Z0-9]{3,16}$/;
+const VBLINK_PASSWORD_RE = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z0-9!@#$()%^/.,]{6,16}$/;
 
 function readRefujText(value: unknown) {
   if (!value || typeof value !== "string") return "";
   return decryptFromRefuj(value) || value;
+}
+
+function generateVblinkUsername(userId: string): string {
+  const cleanId = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toLowerCase() || "player";
+  return `cs${cleanId}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 16);
+}
+
+function readVblinkFullAccount(data: unknown, fallback: string): string {
+  if (!data || typeof data !== "object") return fallback;
+  const row = data as Record<string, unknown>;
+  const candidates = [
+    row["Full account"],
+    row.full_account,
+    row.fullAccount,
+    row.account,
+    row.account_name,
+    row.username,
+  ];
+  return candidates.find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim() ?? fallback;
 }
 
 const GENERIC_REFUJ_STATUS_RE = /^(added successfully|created successfully|account created|success|completed|pending|request submitted|done|failed)$/i;
@@ -132,39 +142,6 @@ async function waitForRefujRegistration(input: {
   return { status: "pending" as const };
 }
 
-async function getRefujIntegration(platform: keyof typeof REFUJ_PLATFORM_GAMES) {
-  const spec = REFUJ_PLATFORM_GAMES[platform];
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: games, error: gameError } = await supabaseAdmin
-    .from("games")
-    .select("id,name,provider")
-    .or(`provider.eq.${spec.provider},name.eq.${spec.name}`);
-  if (gameError) throw new Error(gameError.message);
-
-  const game =
-    (games ?? []).find((g: any) => compact(g.provider) === compact(spec.provider) || compact(g.name) === compact(spec.name)) ??
-    null;
-  if (!game) throw new Error(`${spec.name} is not configured in games.`);
-
-  const { data: integration, error: integrationError } = await supabaseAdmin
-    .from("platform_integrations")
-    .select("api_endpoint,api_key,secret_key")
-    .eq("game_id", (game as any).id)
-    .maybeSingle();
-  if (integrationError) throw new Error(integrationError.message);
-  if (!integration?.api_key || !integration?.secret_key) {
-    throw new Error(`${spec.name} REFUJ agent credentials are not configured.`);
-  }
-
-  return {
-    gameName: spec.name,
-    gameCode: (game as any).provider,
-    apiBase: integration.api_endpoint,
-    gameUser: integration.api_key,
-    gamePass: integration.secret_key,
-  };
-}
-
 async function savePlatformAccount(input: {
   supabaseAdmin: any;
   userId: string;
@@ -199,6 +176,7 @@ const schema = z.object({
     "juwa",
     "juwa2",
     "gamevault",
+    "vblink",
     "firekirin",
     "milkyway",
     "orionstars",
@@ -230,7 +208,7 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        if (platform in REFUJ_PLATFORM_GAMES) {
+        if (platform === "vblink") {
           const { data: existing } = await supabaseAdmin
             .from("platform_players" as never)
             .select("juwa_user_id, juwa_username, juwa_password")
@@ -238,7 +216,74 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             .eq("platform", platform)
             .maybeSingle();
 
-          const refuj = await getRefujIntegration(platform as keyof typeof REFUJ_PLATFORM_GAMES);
+          if (existing) {
+            const row = existing as { juwa_user_id: string; juwa_username: string; juwa_password: string };
+            return jsonOk({
+              username: row.juwa_username,
+              password: row.juwa_password,
+              juwa_user_id: row.juwa_user_id,
+            });
+          }
+
+          const config = await getVblinkConfig();
+          if (!config) return jsonError(400, "Vblink is not configured");
+
+          const callerAccount = parsed.account ?? parsed.username;
+          const callerPwd = parsed.login_pwd ?? parsed.password;
+          let username = callerAccount && VBLINK_ACCOUNT_RE.test(callerAccount)
+            ? callerAccount
+            : generateVblinkUsername(playerSiteUserId);
+          const password = callerPwd && VBLINK_PASSWORD_RE.test(callerPwd)
+            ? callerPwd
+            : generateJuwaPassword();
+
+          let fullAccount = username;
+          let lastError: Error | null = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              const result = await vblinkCall(config, "/fast/user/create", {
+                account: username,
+                passwd: password,
+              });
+              fullAccount = readVblinkFullAccount(result.data, username);
+              lastError = null;
+              break;
+            } catch (e) {
+              const err = e as Error & { code?: number };
+              lastError = err;
+              if (err.code !== 12 || callerAccount) break;
+              username = generateVblinkUsername(playerSiteUserId);
+            }
+          }
+          if (lastError) return jsonError(502, lastError.message);
+
+          const { error: insertErr } = await supabaseAdmin
+            .from("platform_players" as never)
+            .insert({
+              site_user_id: playerSiteUserId,
+              platform,
+              juwa_user_id: username,
+              juwa_username: fullAccount,
+              juwa_password: password,
+            } as never);
+          if (insertErr) return jsonError(500, insertErr.message);
+
+          return jsonOk({
+            username: fullAccount,
+            password,
+            juwa_user_id: username,
+          });
+        }
+
+        if (isRefujPlatform(platform)) {
+          const { data: existing } = await supabaseAdmin
+            .from("platform_players" as never)
+            .select("juwa_user_id, juwa_username, juwa_password")
+            .eq("site_user_id", playerSiteUserId)
+            .eq("platform", platform)
+            .maybeSingle();
+
+          const refuj = await getRefujIntegration(platform);
           const existingRow = existing as { juwa_user_id: string; juwa_username: string; juwa_password: string } | null;
           if (existingRow?.juwa_username && existingRow?.juwa_password) {
             await savePlatformAccount({

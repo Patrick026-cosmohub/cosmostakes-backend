@@ -11,6 +11,7 @@ export type RefujTransferInput = {
   gamePass?: string | null;
   customerUsername: string;
   amount: number;
+  bonusAmount?: number;
   apiBase?: string | null;
 };
 
@@ -276,6 +277,7 @@ export async function callRefujTransfer(input: RefujTransferInput): Promise<Refu
 
   const gameCode = resolveGameCode(input.gameName, input.gameCode);
   const amount = Math.round(Number(input.amount));
+  const bonus = Math.max(0, Math.round(Number(input.bonusAmount ?? 0)));
   const transferId = `COSMO-LOAD-${input.requestId}`;
   const common = {
     secret_key: secretKey,
@@ -286,7 +288,7 @@ export async function callRefujTransfer(input: RefujTransferInput): Promise<Refu
     customer_username: input.customerUsername,
   };
 
-  const payload = { ...common, deposit_id: transferId, bonus: 0 };
+  const payload = { ...common, deposit_id: transferId, bonus };
   const { status, body } = await postRefuj("/credits/add_credit", payload, input.apiBase);
   return { transferId, gameCode, status, raw: body };
 }

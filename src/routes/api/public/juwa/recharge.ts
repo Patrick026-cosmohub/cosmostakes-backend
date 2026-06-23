@@ -8,11 +8,26 @@ import {
   juwaCall,
   randomOrderId,
 } from "./-_helpers.server";
+import { getVblinkConfig, makeVblinkRequestId, vblinkCall } from "./-_vblink.server";
+import { callRefujTransfer } from "@/lib/refuj.server";
+import { getRefujIntegration, isRefujPlatform } from "./-_refuj-platforms.server";
 
 const schema = z.object({
-  platform: z.enum(["juwa", "juwa2", "gamevault"]),
+  platform: z.enum([
+    "juwa",
+    "juwa2",
+    "gamevault",
+    "vblink",
+    "firekirin",
+    "milkyway",
+    "orionstars",
+    "pandamaster",
+    "lasvegassweeps",
+    "highstakes",
+  ]),
   playerSiteUserId: z.string().uuid(),
   amount: z.number().positive(),
+  bonusAmount: z.number().min(0).optional().default(0),
 });
 
 async function handle(request: Request, type: "recharge" | "withdraw", path: string, prefix: string) {
@@ -25,16 +40,13 @@ async function handle(request: Request, type: "recharge" | "withdraw", path: str
   } catch (e) {
     return jsonError(400, "Invalid body", { detail: (e as Error).message });
   }
-  const { platform, playerSiteUserId, amount } = parsed;
-
-  const creds = await getCreds(platform);
-  if (!creds) return jsonError(400, "platform not configured");
+  const { platform, playerSiteUserId, amount, bonusAmount } = parsed;
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const { data: player } = await supabaseAdmin
     .from("platform_players" as never)
-    .select("juwa_user_id")
+    .select("juwa_user_id, juwa_username, juwa_password")
     .eq("site_user_id", playerSiteUserId)
     .eq("platform", platform)
     .maybeSingle();
@@ -42,6 +54,115 @@ async function handle(request: Request, type: "recharge" | "withdraw", path: str
 
   const juwaUserId = (player as { juwa_user_id: string }).juwa_user_id;
   const orderId = randomOrderId(prefix);
+
+  if (isRefujPlatform(platform)) {
+    if (type !== "recharge") {
+      return jsonError(400, "REFUJ redeems are handled manually by admin approval.");
+    }
+
+    const row = player as { juwa_username?: string | null; juwa_password?: string | null };
+    const customerUsername = row.juwa_username?.trim();
+    if (!customerUsername || !row.juwa_password?.trim()) {
+      return jsonError(400, "REFUJ player registration is still pending. Create username again before depositing.");
+    }
+
+    let result;
+    try {
+      const refuj = await getRefujIntegration(platform);
+      result = await callRefujTransfer({
+        kind: "deposit",
+        requestId: orderId,
+        gameName: refuj.gameName,
+        gameCode: refuj.gameCode,
+        gameUser: refuj.gameUser,
+        gamePass: refuj.gamePass,
+        customerUsername,
+        amount,
+        bonusAmount,
+        apiBase: refuj.apiBase,
+      });
+
+      await supabaseAdmin.from("platform_transactions" as never).insert({
+        site_user_id: playerSiteUserId,
+        platform,
+        type,
+        amount,
+        order_id: result.transferId,
+        juwa_transaction_id: result.transferId,
+        status: "success",
+        error: JSON.stringify(result.raw),
+      } as never);
+
+      return jsonOk({
+        order_id: result.transferId,
+        transaction_id: result.transferId,
+        provider: "refuj",
+        game_code: result.gameCode,
+        bonus_amount: bonusAmount,
+      });
+    } catch (e) {
+      const err = e as Error;
+      await supabaseAdmin.from("platform_transactions" as never).insert({
+        site_user_id: playerSiteUserId,
+        platform,
+        type,
+        amount,
+        order_id: result?.transferId ?? orderId,
+        status: "failed",
+        error: err.message,
+      } as never);
+      return jsonError(502, err.message);
+    }
+  }
+
+  if (platform === "vblink") {
+    const config = await getVblinkConfig();
+    if (!config) return jsonError(400, "Vblink is not configured");
+    const requestid = makeVblinkRequestId(prefix);
+    try {
+      const data = await vblinkCall<{
+        balance?: number | string;
+        order_num?: string | number;
+        requestid?: string;
+      }>(config, type === "recharge" ? "/fast/user/deposit" : "/fast/user/withdrawal", {
+        requestid,
+        account: juwaUserId,
+        amount: amount.toFixed(2),
+      });
+
+      await supabaseAdmin.from("platform_transactions" as never).insert({
+        site_user_id: playerSiteUserId,
+        platform,
+        type,
+        amount,
+        order_id: data.data?.requestid ?? requestid,
+        juwa_transaction_id: data.data?.order_num ? String(data.data.order_num) : null,
+        user_balance: data.data?.balance != null ? Number(data.data.balance) : null,
+        status: "success",
+      } as never);
+
+      return jsonOk({
+        user_balance: data.data?.balance,
+        transaction_id: data.data?.order_num,
+        order_id: data.data?.requestid ?? requestid,
+      });
+    } catch (e) {
+      const err = e as Error;
+      await supabaseAdmin.from("platform_transactions" as never).insert({
+        site_user_id: playerSiteUserId,
+        platform,
+        type,
+        amount,
+        order_id: requestid,
+        status: "failed",
+        error: err.message,
+      } as never);
+      return jsonError(502, err.message);
+    }
+  }
+
+  const creds = await getCreds(platform);
+  if (!creds) return jsonError(400, "platform not configured");
 
   try {
     const data = await juwaCall<{
