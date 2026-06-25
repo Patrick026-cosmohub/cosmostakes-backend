@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Send, Search, UserPlus, Inbox, MessageSquare, StickyNote } from "lucide-react";
+import { ArrowLeft, Send, Search, UserPlus, Inbox, MessageSquare, StickyNote } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/support")({
@@ -82,12 +82,16 @@ function SupportCenter() {
         qc.invalidateQueries({ queryKey: ["support-tickets"] });
         qc.invalidateQueries({ queryKey: ["support-counts"] });
       })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
-        qc.invalidateQueries({ queryKey: ["support-tickets"] });
-        qc.invalidateQueries({ queryKey: ["support-counts"] });
-        const tid = (payload.new as { ticket_id?: string } | null)?.ticket_id;
-        if (tid) qc.invalidateQueries({ queryKey: ["support-messages", tid] });
-      })
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages" },
+        (payload) => {
+          qc.invalidateQueries({ queryKey: ["support-tickets"] });
+          qc.invalidateQueries({ queryKey: ["support-counts"] });
+          const tid = (payload.new as { ticket_id?: string } | null)?.ticket_id;
+          if (tid) qc.invalidateQueries({ queryKey: ["support-messages", tid] });
+        },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -95,15 +99,22 @@ function SupportCenter() {
   }, [qc]);
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+    <div className="h-[calc(100dvh-3.5rem)] flex flex-col overflow-hidden">
       <div className="px-4 lg:px-6 py-4 border-b border-border">
         <h1 className="text-lg font-semibold">Support Center</h1>
-        <p className="text-xs text-muted-foreground">Live player chat — accept, reply, assign, resolve.</p>
+        <p className="text-xs text-muted-foreground">
+          Live player chat — accept, reply, assign, resolve.
+        </p>
       </div>
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
         {/* Left: tabs + list */}
-        <div className="w-[360px] shrink-0 border-r border-border flex flex-col min-h-0">
+        <div
+          className={cn(
+            "w-full md:w-[360px] md:shrink-0 border-r border-border flex flex-col min-h-0",
+            selectedId && "hidden md:flex",
+          )}
+        >
           <div className="px-3 pt-3 pb-2 border-b border-border space-y-2">
             <div className="relative">
               <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -159,7 +170,9 @@ function SupportCenter() {
                 >
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-xs font-medium truncate">
-                      {t.player_name || t.player_username || `Player #${t.player_id?.slice(0, 6) ?? "—"}`}
+                      {t.player_name ||
+                        t.player_username ||
+                        `Player #${t.player_id?.slice(0, 6) ?? "—"}`}
                     </span>
                     {t.unread_count_staff > 0 && (
                       <span className="ml-auto shrink-0 size-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold grid place-items-center">
@@ -169,21 +182,40 @@ function SupportCenter() {
                   </div>
                   <div className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1.5">
                     <span>#{t.ticket_number}</span>
-                    {t.player_phone && <><span>·</span><span>{t.player_phone}</span></>}
-                    {t.game_provider && <><span>·</span><span>{t.game_provider}</span></>}
+                    {t.player_phone && (
+                      <>
+                        <span>·</span>
+                        <span>{t.player_phone}</span>
+                      </>
+                    )}
+                    {t.game_provider && (
+                      <>
+                        <span>·</span>
+                        <span>{t.game_provider}</span>
+                      </>
+                    )}
                   </div>
                   <div className="text-[11px] text-muted-foreground line-clamp-1">
-                    {t.last_message_sender === "staff" && <span className="text-primary">You: </span>}
+                    {t.last_message_sender === "staff" && (
+                      <span className="text-primary">You: </span>
+                    )}
                     {t.last_message_preview || <span className="italic">No messages yet</span>}
                   </div>
                   <div className="flex items-center justify-between mt-1.5">
-                    <Badge variant="outline" className={cn("text-[9px] uppercase", STATUS_STYLE[t.status])}>
+                    <Badge
+                      variant="outline"
+                      className={cn("text-[9px] uppercase", STATUS_STYLE[t.status])}
+                    >
                       {t.status.replace("_", " ")}
                     </Badge>
-                    <span className="text-[10px] text-muted-foreground">{timeAgo(t.last_message_at)}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {timeAgo(t.last_message_at)}
+                    </span>
                   </div>
                   {t.assigned_staff_name && (
-                    <div className="text-[10px] text-muted-foreground mt-0.5">→ {t.assigned_staff_name}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      → {t.assigned_staff_name}
+                    </div>
                   )}
                 </button>
               );
@@ -192,9 +224,11 @@ function SupportCenter() {
         </div>
 
         {/* Right: conversation */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div
+          className={cn("flex-1 min-w-0 min-h-0 flex flex-col", !selectedId && "hidden md:flex")}
+        >
           {selectedId ? (
-            <ConversationPane ticketId={selectedId} />
+            <ConversationPane ticketId={selectedId} onBack={() => setSelectedId(null)} />
           ) : (
             <div className="flex-1 grid place-items-center text-sm text-muted-foreground">
               <div className="text-center">
@@ -209,7 +243,7 @@ function SupportCenter() {
   );
 }
 
-function ConversationPane({ ticketId }: { ticketId: string }) {
+function ConversationPane({ ticketId, onBack }: { ticketId: string; onBack?: () => void }) {
   const qc = useQueryClient();
   const fetchTicket = useServerFn(getTicket);
   const fetchMessages = useServerFn(getMessages);
@@ -220,12 +254,18 @@ function ConversationPane({ ticketId }: { ticketId: string }) {
   const doStatus = useServerFn(setTicketStatus);
   const doNote = useServerFn(addNote);
 
-  const ticket = useQuery({ queryKey: ["support-ticket", ticketId], queryFn: () => fetchTicket({ data: { id: ticketId } }) });
+  const ticket = useQuery({
+    queryKey: ["support-ticket", ticketId],
+    queryFn: () => fetchTicket({ data: { id: ticketId } }),
+  });
   const messages = useQuery({
     queryKey: ["support-messages", ticketId],
     queryFn: () => fetchMessages({ data: { ticketId } }),
   });
-  const notes = useQuery({ queryKey: ["support-notes", ticketId], queryFn: () => fetchNotes({ data: { ticketId } }) });
+  const notes = useQuery({
+    queryKey: ["support-notes", ticketId],
+    queryFn: () => fetchNotes({ data: { ticketId } }),
+  });
   const staff = useQuery({ queryKey: ["support-staff"], queryFn: () => fetchStaff() });
 
   const [reply, setReply] = useState("");
@@ -254,7 +294,8 @@ function ConversationPane({ ticketId }: { ticketId: string }) {
     },
   });
   const assignMut = useMutation({
-    mutationFn: (toStaffId: string | null | undefined) => doAssign({ data: { ticketId, toStaffId } }),
+    mutationFn: (toStaffId: string | null | undefined) =>
+      doAssign({ data: { ticketId, toStaffId } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["support-ticket", ticketId] });
       qc.invalidateQueries({ queryKey: ["support-tickets"] });
@@ -276,41 +317,65 @@ function ConversationPane({ ticketId }: { ticketId: string }) {
   return (
     <>
       {/* Header */}
-      <div className="px-4 lg:px-6 py-3 border-b border-border flex items-center gap-3 flex-wrap">
-        <div className="min-w-0">
-          <div className="text-sm font-semibold truncate">
+      <div className="px-3 sm:px-4 lg:px-6 py-3 border-b border-border flex items-start gap-3 flex-wrap">
+        {onBack && (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="md:hidden size-8 shrink-0"
+            onClick={onBack}
+            aria-label="Back to tickets"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold break-words">
             {t?.player_name || t?.player_username || "Player"}{" "}
-            <span className="text-muted-foreground font-normal">#{t?.ticket_number}</span>
+            <span className="text-muted-foreground font-normal whitespace-nowrap">
+              #{t?.ticket_number}
+            </span>
           </div>
-          <div className="text-[10px] text-muted-foreground flex items-center gap-2">
+          <div className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 break-all">
             {t?.player_phone && <span>{t.player_phone}</span>}
             {t?.player_username && <span>@{t.player_username}</span>}
             {t?.game_provider && <span>· {t.game_provider}</span>}
             {t?.issue_type && <span>· {t.issue_type}</span>}
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
           {t && (
-            <Badge variant="outline" className={cn("text-[10px] uppercase", STATUS_STYLE[t.status])}>
+            <Badge
+              variant="outline"
+              className={cn("text-[10px] uppercase", STATUS_STYLE[t.status])}
+            >
               {t.status.replace("_", " ")}
             </Badge>
           )}
-          <Button size="sm" variant="outline" onClick={() => assignMut.mutate(undefined)} disabled={assignMut.isPending}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => assignMut.mutate(undefined)}
+            disabled={assignMut.isPending}
+          >
             <UserPlus className="size-3.5 mr-1" /> Accept
           </Button>
           <Select onValueChange={(v) => assignMut.mutate(v === "__unassign" ? null : v)}>
-            <SelectTrigger className="h-8 w-[160px] text-xs">
+            <SelectTrigger className="h-8 w-[min(10rem,calc(50vw-1rem))] sm:w-[160px] text-xs">
               <SelectValue placeholder="Transfer to…" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__unassign">Unassign</SelectItem>
               {(staff.data ?? []).map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Select value={t?.status} onValueChange={(v) => statusMut.mutate(v)}>
-            <SelectTrigger className="h-8 w-[140px] text-xs">
+            <SelectTrigger className="h-8 w-[min(8.75rem,calc(50vw-1rem))] sm:w-[140px] text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -326,12 +391,14 @@ function ConversationPane({ ticketId }: { ticketId: string }) {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-border px-4 lg:px-6 flex gap-4">
+      <div className="border-b border-border px-3 sm:px-4 lg:px-6 flex gap-4 overflow-x-auto">
         <button
           onClick={() => setTab("chat")}
           className={cn(
             "py-2 text-xs uppercase tracking-wider border-b-2 flex items-center gap-1.5",
-            tab === "chat" ? "border-primary text-primary" : "border-transparent text-muted-foreground",
+            tab === "chat"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground",
           )}
         >
           <MessageSquare className="size-3" /> Conversation
@@ -340,7 +407,9 @@ function ConversationPane({ ticketId }: { ticketId: string }) {
           onClick={() => setTab("notes")}
           className={cn(
             "py-2 text-xs uppercase tracking-wider border-b-2 flex items-center gap-1.5",
-            tab === "notes" ? "border-primary text-primary" : "border-transparent text-muted-foreground",
+            tab === "notes"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground",
           )}
         >
           <StickyNote className="size-3" /> Internal Notes
@@ -352,23 +421,30 @@ function ConversationPane({ ticketId }: { ticketId: string }) {
 
       {tab === "chat" ? (
         <>
-          <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-3">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 space-y-3">
             {items.map((m) => {
               const isPlayer = m.sender_type === "player";
               const isBot = m.sender_type === "bot";
               const isSystem = m.sender_type === "system";
               if (isSystem) {
                 return (
-                  <div key={m.id} className="text-center text-[10px] text-muted-foreground uppercase tracking-wider">
+                  <div
+                    key={m.id}
+                    className="text-center text-[10px] text-muted-foreground uppercase tracking-wider"
+                  >
                     {m.body}
                   </div>
                 );
               }
               return (
-                <div key={m.id} className={cn("flex", isPlayer || isBot ? "justify-start" : "justify-end")}>
-                  <div className="max-w-[70%]">
-                    <div className="text-[10px] text-muted-foreground mb-0.5 px-1">
-                      {isPlayer ? "Player" : isBot ? "Bot" : m.sender_name ?? "Staff"} · {new Date(m.created_at).toLocaleString()}
+                <div
+                  key={m.id}
+                  className={cn("flex", isPlayer || isBot ? "justify-start" : "justify-end")}
+                >
+                  <div className="max-w-[88%] sm:max-w-[70%] min-w-0">
+                    <div className="text-[10px] text-muted-foreground mb-0.5 px-1 break-words">
+                      {isPlayer ? "Player" : isBot ? "Bot" : (m.sender_name ?? "Staff")} ·{" "}
+                      {new Date(m.created_at).toLocaleString()}
                     </div>
                     <div
                       className={cn(
@@ -408,7 +484,7 @@ function ConversationPane({ ticketId }: { ticketId: string }) {
                 }
               }}
               placeholder="Reply to player… (⌘/Ctrl+Enter to send)"
-              className="min-h-[60px] text-sm resize-none"
+              className="min-h-[60px] text-sm resize-none min-w-0"
             />
             <Button
               onClick={() => replyMut.mutate()}
@@ -424,7 +500,9 @@ function ConversationPane({ ticketId }: { ticketId: string }) {
         <>
           <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-2">
             {notes.data?.length === 0 && (
-              <div className="text-xs text-muted-foreground text-center py-6">No internal notes yet.</div>
+              <div className="text-xs text-muted-foreground text-center py-6">
+                No internal notes yet.
+              </div>
             )}
             {notes.data?.map((n) => (
               <div key={n.id} className="bg-amber-500/5 border border-amber-500/20 rounded-md p-3">
