@@ -9,7 +9,11 @@ export const getMe = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const [{ data: profile }, { data: roles }] = await Promise.all([
-      supabase.from("staff_profiles").select("id,email,full_name,is_active").eq("id", userId).maybeSingle(),
+      supabase
+        .from("staff_profiles")
+        .select("id,email,full_name,is_active")
+        .eq("id", userId)
+        .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
     ]);
     return {
@@ -27,37 +31,64 @@ export const getDashboard = createServerFn({ method: "GET" })
     const sinceToday = new Date();
     sinceToday.setHours(0, 0, 0, 0);
 
-    const [pendingDeposits, pendingCashouts, players, todayLedger, recentActivity, recentDeposits, recentCashouts] =
-      await Promise.all([
-        supabase.from("deposit_requests").select("id,amount", { count: "exact" }).eq("status", "pending"),
-        supabase.from("cashout_requests").select("id,amount", { count: "exact" }).eq("status", "pending"),
-        supabase.from("players").select("id", { count: "exact", head: true }).eq("status", "active"),
-        supabase.from("wallet_ledger").select("amount,type").gte("created_at", sinceToday.toISOString()),
-        supabase
-          .from("audit_logs")
-          .select("id,action,entity_type,entity_id,created_at,staff_id,metadata")
-          .order("created_at", { ascending: false })
-          .limit(8),
-        supabase
-          .from("deposit_requests")
-          .select("id,amount,status,requested_at,player:players(username,full_name)")
-          .eq("status", "pending")
-          .order("requested_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("cashout_requests")
-          .select("id,amount,status,requested_at,player:players(username,full_name)")
-          .eq("status", "pending")
-          .order("requested_at", { ascending: false })
-          .limit(5),
-      ]);
+    const [
+      pendingDeposits,
+      pendingCashouts,
+      players,
+      todayLedger,
+      recentActivity,
+      recentDeposits,
+      recentCashouts,
+    ] = await Promise.all([
+      supabase
+        .from("deposit_requests")
+        .select("id,amount", { count: "exact" })
+        .eq("status", "pending"),
+      supabase
+        .from("cashout_requests")
+        .select("id,amount", { count: "exact" })
+        .eq("status", "pending"),
+      supabase.from("players").select("id", { count: "exact", head: true }).eq("status", "active"),
+      supabase
+        .from("wallet_ledger")
+        .select("amount,type")
+        .gte("created_at", sinceToday.toISOString()),
+      supabase
+        .from("audit_logs")
+        .select("id,action,entity_type,entity_id,created_at,staff_id,metadata")
+        .order("created_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("deposit_requests")
+        .select("id,amount,status,requested_at,player:players(username,full_name)")
+        .eq("status", "pending")
+        .order("requested_at", { ascending: false })
+        .limit(5),
+      supabase
+        .from("cashout_requests")
+        .select("id,amount,status,requested_at,player:players(username,full_name)")
+        .eq("status", "pending")
+        .order("requested_at", { ascending: false })
+        .limit(5),
+    ]);
 
-    const pendingDepositTotal = (pendingDeposits.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
-    const pendingCashoutTotal = (pendingCashouts.data ?? []).reduce((s, r) => s + Number(r.amount), 0);
-    const todayVolume = (todayLedger.data ?? []).reduce((s, r) => s + Math.abs(Number(r.amount)), 0);
+    const pendingDepositTotal = (pendingDeposits.data ?? []).reduce(
+      (s, r) => s + Number(r.amount),
+      0,
+    );
+    const pendingCashoutTotal = (pendingCashouts.data ?? []).reduce(
+      (s, r) => s + Number(r.amount),
+      0,
+    );
+    const todayVolume = (todayLedger.data ?? []).reduce(
+      (s, r) => s + Math.abs(Number(r.amount)),
+      0,
+    );
 
     // hydrate staff names for activity
-    const staffIds = Array.from(new Set((recentActivity.data ?? []).map((a) => a.staff_id).filter(Boolean) as string[]));
+    const staffIds = Array.from(
+      new Set((recentActivity.data ?? []).map((a) => a.staff_id).filter(Boolean) as string[]),
+    );
     const { data: staff } = staffIds.length
       ? await supabase.from("staff_profiles").select("id,full_name,email").in("id", staffIds)
       : { data: [] as { id: string; full_name: string | null; email: string }[] };
@@ -76,7 +107,7 @@ export const getDashboard = createServerFn({ method: "GET" })
       pendingCashouts: recentCashouts.data ?? [],
       activity: (recentActivity.data ?? []).map((a) => ({
         ...a,
-        staff: a.staff_id ? staffById.get(a.staff_id) ?? null : null,
+        staff: a.staff_id ? (staffById.get(a.staff_id) ?? null) : null,
       })),
     };
   });
@@ -133,7 +164,9 @@ export const listPlayersSegmented = createServerFn({ method: "GET" })
     const { supabase } = context;
     let query = supabase
       .from("players")
-      .select("id,username,full_name,email,phone,game_id,status,balance,created_at,game:games(id,name,provider)")
+      .select(
+        "id,username,full_name,email,phone,game_id,status,balance,created_at,game:games(id,name,provider)",
+      )
       .order("created_at", { ascending: false })
       .limit(500);
     const q = data.q.trim();
@@ -152,6 +185,7 @@ export const listPlayersSegmented = createServerFn({ method: "GET" })
         .from("wallet_ledger")
         .select("player_id")
         .eq("type", "deposit")
+        .not("related_deposit", "is", null)
         .in("player_id", ids);
       (depositRows ?? []).forEach((r) => depositorIds.add(r.player_id));
     }
@@ -308,12 +342,16 @@ export const getFinancialReports = createServerFn({ method: "GET" })
       const d = new Date(now);
       d.setDate(now.getDate() - i * 7);
       const s = startOfWeek(d);
-      weeks.push(empty(iso(s), `Wk of ${s.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`));
+      weeks.push(
+        empty(iso(s), `Wk of ${s.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`),
+      );
     }
     const months: Bucket[] = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push(empty(iso(d), d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })));
+      months.push(
+        empty(iso(d), d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })),
+      );
     }
 
     const dayMap = new Map(days.map((b) => [b.key, b]));
@@ -426,7 +464,11 @@ export const createPlayer = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        username: z.string().min(2).max(64).regex(/^[a-zA-Z0-9_.-]+$/),
+        username: z
+          .string()
+          .min(2)
+          .max(64)
+          .regex(/^[a-zA-Z0-9_.-]+$/),
         full_name: z.string().max(120).optional().nullable(),
         email: z.string().email().optional().nullable().or(z.literal("")),
         phone: z.string().max(40).optional().nullable(),
@@ -465,7 +507,9 @@ export const listRequests = createServerFn({ method: "GET" })
     z
       .object({
         kind: z.enum(["deposit", "cashout"]),
-        status: z.enum(["all", "pending", "approved", "rejected", "failed", "uncertain"]).default("pending"),
+        status: z
+          .enum(["all", "pending", "approved", "rejected", "failed", "uncertain"])
+          .default("pending"),
       })
       .parse(d),
   )
@@ -544,7 +588,11 @@ export const decideRequest = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const table = data.kind === "deposit" ? "deposit_requests" : "cashout_requests";
 
-    const { data: req, error: fetchErr } = await supabase.from(table).select("*").eq("id", data.id).maybeSingle();
+    const { data: req, error: fetchErr } = await supabase
+      .from(table)
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
     if (fetchErr) throw new Error(fetchErr.message);
     if (!req) throw new Error("Request not found");
     if (req.status !== "pending") throw new Error(`Request is already ${req.status}`);
@@ -589,7 +637,8 @@ export const decideRequest = createServerFn({ method: "POST" })
       if (profile) {
         const delta = Number(req.amount);
         const currency = requestedProfileCurrency(req);
-        const creditReason = `manual redeem approval: ${req.destination ?? "game redeem"}`;
+        const destination = "destination" in req ? req.destination : null;
+        const creditReason = `manual redeem approval: ${destination ?? "game redeem"}`;
         const { data: existingCredit, error: existingCreditError } = await supabaseAdmin
           .from("wallet_transactions" as never)
           .select("id")
@@ -600,56 +649,42 @@ export const decideRequest = createServerFn({ method: "POST" })
           .maybeSingle();
         if (existingCreditError) throw new Error(existingCreditError.message);
         if (!existingCredit) {
-          const { error: profileCreditError } = await supabaseAdmin.rpc("admin_adjust_profile_wallet" as never, {
-            p_user_id: req.player_id,
-            p_currency: currency,
-            p_delta: delta,
-            p_reason: creditReason,
-            p_staff_id: userId,
-          } as never);
+          const { error: profileCreditError } = await supabaseAdmin.rpc(
+            "admin_adjust_profile_wallet" as never,
+            {
+              p_user_id: req.player_id,
+              p_currency: currency,
+              p_delta: delta,
+              p_reason: creditReason,
+              p_staff_id: userId,
+            } as never,
+          );
           if (profileCreditError) throw new Error(profileCreditError.message);
         }
       }
     }
 
-    const { error: updErr } = await supabase
-      .from(table)
-      .update({
-        status: data.decision,
-        processed_at: new Date().toISOString(),
-        processed_by: userId,
-        notes: [data.note ?? req.notes, refujNote].filter(Boolean).join("\n") || null,
-      })
-      .eq("id", data.id);
-    if (updErr) throw new Error(updErr.message);
-
-    // On approval, credit the wallet and write a ledger row. Cashouts here are
-    // manual game redeems: admin redeems in the game, then approval credits wallet.
-    if (data.decision === "approved") {
-      const { data: player } = await supabase.from("players").select("balance").eq("id", req.player_id).single();
-      const current = Number(player?.balance ?? 0);
-      const delta = Number(req.amount);
-      const next = current + delta;
-      await supabase.from("players").update({ balance: next }).eq("id", req.player_id);
-
-      await supabase.from("wallet_ledger").insert({
-        player_id: req.player_id,
-        type: "deposit",
-        amount: delta,
-        balance_after: next,
-        staff_id: userId,
-        related_deposit: data.kind === "deposit" ? req.id : null,
-        related_cashout: data.kind === "cashout" ? req.id : null,
-        reason: data.note ?? (data.kind === "cashout" ? "manual redeem approval" : "deposit approval"),
-      });
-    }
+    const { error: finalizeErr } = await supabase.rpc("finalize_finance_request" as never, {
+      p_kind: data.kind,
+      p_request_id: data.id,
+      p_decision: data.decision,
+      p_note: data.note ?? null,
+      p_refuj_note: refujNote,
+      p_staff_id: userId,
+    } as never);
+    if (finalizeErr) throw new Error(finalizeErr.message);
 
     await supabase.from("audit_logs").insert({
       staff_id: userId,
       action: `${data.kind}.${data.decision}`,
       entity_type: data.kind,
       entity_id: data.id,
-      metadata: { amount: req.amount, player_id: req.player_id, note: data.note ?? null, refuj: refujNote },
+      metadata: {
+        amount: req.amount,
+        player_id: req.player_id,
+        note: data.note ?? null,
+        refuj: refujNote,
+      },
     });
     return { ok: true };
   });
@@ -673,21 +708,26 @@ export const adjustWallet = createServerFn({ method: "POST" })
     const { data: canFinance } = await supabase.rpc("can_handle_finance", { _user_id: userId });
     if (!canFinance) throw new Error("Forbidden: finance role required");
 
-    const { data: player, error: pErr } = await supabase.from("players").select("balance,username").eq("id", data.player_id).maybeSingle();
+    const { data: player, error: pErr } = await supabase
+      .from("players")
+      .select("balance,username")
+      .eq("id", data.player_id)
+      .maybeSingle();
     if (pErr || !player) throw new Error("Player not found");
     const delta = data.kind === "credit" ? data.amount : -data.amount;
-    const next = Number(player.balance) + delta;
-    if (next < 0) throw new Error("Adjustment would result in negative balance");
+    const { data: adjustedRows, error: adjustError } = await supabase.rpc(
+      "adjust_player_wallet" as never,
+      {
+        p_player_id: data.player_id,
+        p_delta: delta,
+        p_reason: data.reason,
+        p_staff_id: userId,
+      } as never,
+    );
+    if (adjustError) throw new Error(adjustError.message);
+    const adjusted = Array.isArray(adjustedRows) ? adjustedRows[0] : adjustedRows;
+    const next = Number((adjusted as { balance?: number | string } | null)?.balance ?? 0);
 
-    await supabase.from("players").update({ balance: next }).eq("id", data.player_id);
-    await supabase.from("wallet_ledger").insert({
-      player_id: data.player_id,
-      type: data.kind === "credit" ? "manual_credit" : "manual_debit",
-      amount: delta,
-      balance_after: next,
-      staff_id: userId,
-      reason: data.reason,
-    });
     await supabase.from("audit_logs").insert({
       staff_id: userId,
       action: `wallet.${data.kind}`,
@@ -716,7 +756,9 @@ export const searchPlayerWallets = createServerFn({ method: "GET" })
     const q = data.q.trim();
     if (q) {
       const like = `%${q}%`;
-      query = query.or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},phone.ilike.${like}`);
+      query = query.or(
+        `first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},phone.ilike.${like}`,
+      );
     }
     const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
@@ -776,7 +818,9 @@ export const adjustPlayerDashboardWallet = createServerFn({ method: "POST" })
     );
     if (adjustError) throw new Error(adjustError.message);
     const adjusted = Array.isArray(adjustedRows) ? adjustedRows[0] : adjustedRows;
-    const finalBalance = Number((adjusted as { balance?: number | string } | null)?.balance ?? next);
+    const finalBalance = Number(
+      (adjusted as { balance?: number | string } | null)?.balance ?? next,
+    );
 
     await supabase.from("audit_logs").insert({
       staff_id: userId,
@@ -819,12 +863,17 @@ export const listAuditLogs = createServerFn({ method: "GET" })
     if (data.to) q = q.lte("created_at", data.to);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    const staffIds = Array.from(new Set((rows ?? []).map((r) => r.staff_id).filter(Boolean) as string[]));
+    const staffIds = Array.from(
+      new Set((rows ?? []).map((r) => r.staff_id).filter(Boolean) as string[]),
+    );
     const { data: staff } = staffIds.length
       ? await supabase.from("staff_profiles").select("id,full_name,email").in("id", staffIds)
       : { data: [] as { id: string; full_name: string | null; email: string }[] };
     const map = new Map((staff ?? []).map((s) => [s.id, s]));
-    return (rows ?? []).map((r) => ({ ...r, staff: r.staff_id ? map.get(r.staff_id) ?? null : null }));
+    return (rows ?? []).map((r) => ({
+      ...r,
+      staff: r.staff_id ? (map.get(r.staff_id) ?? null) : null,
+    }));
   });
 
 /** Staff list — super admin only mutates. */
@@ -860,7 +909,10 @@ export const setStaffRoles = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    const { data: isSuper } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "super_admin",
+    });
     if (!isSuper) throw new Error("Forbidden: super admin only");
     if (data.user_id === userId && !data.roles.includes("super_admin")) {
       throw new Error("Cannot remove your own super_admin role");
@@ -868,7 +920,9 @@ export const setStaffRoles = createServerFn({ method: "POST" })
     // Replace role set
     await supabase.from("user_roles").delete().eq("user_id", data.user_id);
     if (data.roles.length) {
-      await supabase.from("user_roles").insert(data.roles.map((role) => ({ user_id: data.user_id, role })));
+      await supabase
+        .from("user_roles")
+        .insert(data.roles.map((role) => ({ user_id: data.user_id, role })));
     }
     await supabase.from("audit_logs").insert({
       staff_id: userId,
@@ -886,7 +940,12 @@ export const createStaff = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        username: z.string().trim().min(2).max(40).regex(/^[a-zA-Z0-9_.-]+$/, "Username may use letters, numbers, _ . -"),
+        username: z
+          .string()
+          .trim()
+          .min(2)
+          .max(40)
+          .regex(/^[a-zA-Z0-9_.-]+$/, "Username may use letters, numbers, _ . -"),
         email: z.string().email(),
         password: z.string().min(8).max(128),
         full_name: z.string().min(1).max(120),
@@ -899,7 +958,10 @@ export const createStaff = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    const { data: isSuper } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "super_admin",
+    });
     if (!isSuper) throw new Error("Forbidden: super admin only");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -920,9 +982,13 @@ export const createStaff = createServerFn({ method: "POST" })
     const newId = created.user.id;
 
     // Ensure profile exists (trigger should handle it, but upsert to be safe).
-    await supabaseAdmin
-      .from("staff_profiles")
-      .upsert({ id: newId, email: data.email, username: data.username, full_name: data.full_name, is_active: true });
+    await supabaseAdmin.from("staff_profiles").upsert({
+      id: newId,
+      email: data.email,
+      username: data.username,
+      full_name: data.full_name,
+      is_active: true,
+    });
 
     // Replace any auto-assigned roles with the chosen set.
     await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
@@ -943,15 +1009,19 @@ export const createStaff = createServerFn({ method: "POST" })
 /** Super-admin: toggle active flag on a staff account. */
 export const setStaffActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ user_id: z.string().uuid(), is_active: z.boolean() }).parse(d),
-  )
+  .inputValidator((d) => z.object({ user_id: z.string().uuid(), is_active: z.boolean() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    const { data: isSuper } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "super_admin",
+    });
     if (!isSuper) throw new Error("Forbidden: super admin only");
     if (data.user_id === userId) throw new Error("Cannot deactivate your own account");
-    await supabase.from("staff_profiles").update({ is_active: data.is_active }).eq("id", data.user_id);
+    await supabase
+      .from("staff_profiles")
+      .update({ is_active: data.is_active })
+      .eq("id", data.user_id);
     await supabase.from("audit_logs").insert({
       staff_id: userId,
       action: data.is_active ? "staff.activate" : "staff.deactivate",
@@ -968,7 +1038,13 @@ export const updateStaff = createServerFn({ method: "POST" })
     z
       .object({
         user_id: z.string().uuid(),
-        username: z.string().trim().min(2).max(40).regex(/^[a-zA-Z0-9_.-]+$/).optional(),
+        username: z
+          .string()
+          .trim()
+          .min(2)
+          .max(40)
+          .regex(/^[a-zA-Z0-9_.-]+$/)
+          .optional(),
         full_name: z.string().min(1).max(120).optional(),
         email: z.string().email().optional(),
         password: z.string().min(8).max(128).optional(),
@@ -977,7 +1053,10 @@ export const updateStaff = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    const { data: isSuper } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "super_admin",
+    });
     if (!isSuper) throw new Error("Forbidden: super admin only");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -996,7 +1075,10 @@ export const updateStaff = createServerFn({ method: "POST" })
     if (data.email !== undefined) profilePatch.email = data.email;
 
     if (Object.keys(profilePatch).length) {
-      const { error } = await supabaseAdmin.from("staff_profiles").update(profilePatch).eq("id", data.user_id);
+      const { error } = await supabaseAdmin
+        .from("staff_profiles")
+        .update(profilePatch)
+        .eq("id", data.user_id);
       if (error) throw new Error(error.message);
     }
 
@@ -1014,10 +1096,7 @@ export const updateStaff = createServerFn({ method: "POST" })
       entity_type: "staff",
       entity_id: data.user_id,
       metadata: {
-        changed: [
-          ...Object.keys(profilePatch),
-          ...(data.password ? ["password"] : []),
-        ],
+        changed: [...Object.keys(profilePatch), ...(data.password ? ["password"] : [])],
       },
     });
     return { ok: true };
@@ -1029,24 +1108,31 @@ export const getStaffDetail = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ user_id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: isSuper } = await supabase.rpc("has_role", { _user_id: userId, _role: "super_admin" });
+    const { data: isSuper } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "super_admin",
+    });
     if (!isSuper) throw new Error("Forbidden: super admin only");
 
-    const [{ data: profile }, { data: roles }, { data: activity }, { count: actionCount }] = await Promise.all([
-      supabase
-        .from("staff_profiles")
-        .select("id,email,username,full_name,is_active,created_at")
-        .eq("id", data.user_id)
-        .maybeSingle(),
-      supabase.from("user_roles").select("role").eq("user_id", data.user_id),
-      supabase
-        .from("audit_logs")
-        .select("id,action,entity_type,entity_id,metadata,created_at")
-        .eq("staff_id", data.user_id)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase.from("audit_logs").select("id", { count: "exact", head: true }).eq("staff_id", data.user_id),
-    ]);
+    const [{ data: profile }, { data: roles }, { data: activity }, { count: actionCount }] =
+      await Promise.all([
+        supabase
+          .from("staff_profiles")
+          .select("id,email,username,full_name,is_active,created_at")
+          .eq("id", data.user_id)
+          .maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", data.user_id),
+        supabase
+          .from("audit_logs")
+          .select("id,action,entity_type,entity_id,metadata,created_at")
+          .eq("staff_id", data.user_id)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("audit_logs")
+          .select("id", { count: "exact", head: true })
+          .eq("staff_id", data.user_id),
+      ]);
     return {
       profile,
       roles: (roles ?? []).map((r) => r.role as string),
@@ -1145,20 +1231,29 @@ export const getPlatformsOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const [{ data: games }, { data: players }, { data: ledger }, { data: pendingDeps }, { data: pendingCash }] =
-      await Promise.all([
-        supabase.from("games").select("id,name,provider,is_active,display_title,sort_order").order("sort_order").order("name"),
-        supabase.from("players").select("id,game_id,status,balance"),
-        supabase.from("wallet_ledger").select("amount,type,player:players(game_id)"),
-        supabase
-          .from("deposit_requests")
-          .select("amount,player:players(game_id)")
-          .eq("status", "pending"),
-        supabase
-          .from("cashout_requests")
-          .select("amount,player:players(game_id)")
-          .eq("status", "pending"),
-      ]);
+    const [
+      { data: games },
+      { data: players },
+      { data: ledger },
+      { data: pendingDeps },
+      { data: pendingCash },
+    ] = await Promise.all([
+      supabase
+        .from("games")
+        .select("id,name,provider,is_active,display_title,sort_order")
+        .order("sort_order")
+        .order("name"),
+      supabase.from("players").select("id,game_id,status,balance"),
+      supabase.from("wallet_ledger").select("amount,type,player:players(game_id)"),
+      supabase
+        .from("deposit_requests")
+        .select("amount,player:players(game_id)")
+        .eq("status", "pending"),
+      supabase
+        .from("cashout_requests")
+        .select("amount,player:players(game_id)")
+        .eq("status", "pending"),
+    ]);
 
     type Stat = {
       id: string;
@@ -1187,7 +1282,9 @@ export const getPlatformsOverview = createServerFn({ method: "GET" })
 
     PLAYER_DASHBOARD_PLATFORMS.forEach((platform) => {
       const keys = new Set([platformKey(platform.name), platformKey(platform.provider)]);
-      const game = dbGames.find((g) => keys.has(platformKey(g.name)) || keys.has(platformKey(g.provider)));
+      const game = dbGames.find(
+        (g) => keys.has(platformKey(g.name)) || keys.has(platformKey(g.provider)),
+      );
       const id = game?.id ?? `dashboard-${platform.provider}`;
       if (game?.id) gameToPlatformId.set(game.id, id);
 
@@ -1287,8 +1384,16 @@ export const createRequest = createServerFn({ method: "POST" })
     };
     const { data: row, error } =
       data.kind === "deposit"
-        ? await supabase.from("deposit_requests").insert({ ...base, reference: data.reference || null }).select().single()
-        : await supabase.from("cashout_requests").insert({ ...base, destination: data.destination || null }).select().single();
+        ? await supabase
+            .from("deposit_requests")
+            .insert({ ...base, reference: data.reference || null })
+            .select()
+            .single()
+        : await supabase
+            .from("cashout_requests")
+            .insert({ ...base, destination: data.destination || null })
+            .select()
+            .single();
     if (error) throw new Error(error.message);
     await supabase.from("audit_logs").insert({
       staff_id: userId,
@@ -1393,7 +1498,7 @@ export const listPlatformIntegrations = createServerFn({ method: "GET" })
               updated_at: creds.updated_at,
             };
           })()
-        : byGame.get(g.id) ?? null,
+        : (byGame.get(g.id) ?? null),
     }));
   });
 
@@ -1427,8 +1532,7 @@ export const upsertPlatformIntegration = createServerFn({ method: "POST" })
       api_key: data.api_key || null,
       secret_key: data.secret_key || null,
       webhook_url: data.webhook_url || null,
-      connection_status:
-        data.api_key && data.secret_key ? "configured" : "not_configured",
+      connection_status: data.api_key && data.secret_key ? "configured" : "not_configured",
     };
     const { data: row, error } = await context.supabase
       .from("platform_integrations")
@@ -1441,12 +1545,15 @@ export const upsertPlatformIntegration = createServerFn({ method: "POST" })
       if (payload.api_endpoint && payload.api_key && payload.secret_key) {
         const { error: credError } = await context.supabase
           .from("platform_credentials" as never)
-          .upsert({
-            platform: provider,
-            base_url: payload.api_endpoint,
-            agent_id: payload.api_key,
-            secret_key: payload.secret_key,
-          } as never, { onConflict: "platform" });
+          .upsert(
+            {
+              platform: provider,
+              base_url: payload.api_endpoint,
+              agent_id: payload.api_key,
+              secret_key: payload.secret_key,
+            } as never,
+            { onConflict: "platform" },
+          );
         if (credError) throw new Error(credError.message);
       } else {
         await context.supabase
@@ -1468,9 +1575,7 @@ export const upsertPlatformIntegration = createServerFn({ method: "POST" })
 
 export const testPlatformIntegration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ game_id: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ game_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertSuperAdmin(context);
     const { data: integ } = await context.supabase
@@ -1492,9 +1597,10 @@ export const testPlatformIntegration = createServerFn({ method: "POST" })
     if (PLATFORM_CREDENTIAL_PROVIDERS.has(provider)) {
       if (integ?.api_endpoint && integ?.api_key && integ?.secret_key) {
         status = "connected";
-        message = provider === "vblink"
-          ? "VBlink credentials are saved for the relay."
-          : "Platform credentials are saved for the relay.";
+        message =
+          provider === "vblink"
+            ? "VBlink credentials are saved for the relay."
+            : "Platform credentials are saved for the relay.";
       } else {
         message = "Missing API base URL, agent/app ID, or secret.";
       }
@@ -1516,7 +1622,7 @@ export const testPlatformIntegration = createServerFn({ method: "POST" })
         connection_status: status,
         last_test_at: now,
         last_test_message: message,
-        last_synced_at: status === "connected" ? now : integ?.last_synced_at ?? null,
+        last_synced_at: status === "connected" ? now : (integ?.last_synced_at ?? null),
       })
       .eq("game_id", data.game_id)
       .select()
