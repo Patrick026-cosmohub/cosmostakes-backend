@@ -22,7 +22,11 @@ async function getStoredCreds(platform: string): Promise<JuwaCreds | null> {
     .eq("platform", platform)
     .maybeSingle();
   if (error || !data) return null;
-  const row = data as { base_url?: string | null; agent_id?: string | null; secret_key?: string | null };
+  const row = data as {
+    base_url?: string | null;
+    agent_id?: string | null;
+    secret_key?: string | null;
+  };
   if (!row.base_url?.trim() || !row.agent_id?.trim() || !row.secret_key?.trim()) return null;
   return {
     baseUrl: row.base_url.trim(),
@@ -79,7 +83,11 @@ export function checkApiKey(request: Request): Response | null {
   return null;
 }
 
-export function jsonError(status: number, message: string, extra?: Record<string, unknown>): Response {
+export function jsonError(
+  status: number,
+  message: string,
+  extra?: Record<string, unknown>,
+): Response {
   return new Response(JSON.stringify({ error: message, ...extra }), {
     status,
     headers: { "content-type": "application/json", ...CORS_HEADERS },
@@ -91,6 +99,13 @@ export function jsonOk(data: unknown): Response {
     status: 200,
     headers: { "content-type": "application/json", ...CORS_HEADERS },
   });
+}
+
+export function redactJuwaFields(fields: Record<string, unknown>): Record<string, unknown> {
+  const sensitive = new Set(["token", "login_pwd", "password", "secret", "secret_key"]);
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, value]) => [key, sensitive.has(key) ? "***" : value]),
+  );
 }
 
 export async function juwaCall<T = Record<string, unknown>>(
@@ -113,7 +128,7 @@ export async function juwaCall<T = Record<string, unknown>>(
 
   const url = creds.baseUrl.replace(/\/$/, "") + path;
   const sentFields = Object.fromEntries(form.entries());
-  const logFields = { ...sentFields, token: "***" };
+  const logFields = redactJuwaFields(sentFields);
   if (path === "/api/external/addUser") {
     console.log("[juwa addUser] outgoing form:", logFields);
   } else {
@@ -125,9 +140,7 @@ export async function juwaCall<T = Record<string, unknown>>(
   if (relayUrl && relaySecret) {
     const payload = JSON.stringify({ url, fields: sentFields });
     const ts = Math.floor(Date.now() / 1000).toString();
-    const sig = createHmac("sha256", relaySecret)
-      .update(`${ts}.${payload}`)
-      .digest("hex");
+    const sig = createHmac("sha256", relaySecret).update(`${ts}.${payload}`).digest("hex");
     res = await fetch(relayUrl, {
       method: "POST",
       headers: {
@@ -151,9 +164,11 @@ export async function juwaCall<T = Record<string, unknown>>(
     body = JSON.parse(text);
   } catch {
     const err = new Error(`Juwa non-JSON response (${res.status}): ${text.slice(0, 200)}`);
-    (err as Error & { status?: number; body?: string; sent?: Record<string, string> }).status = res.status;
+    (err as Error & { status?: number; body?: string; sent?: Record<string, string> }).status =
+      res.status;
     (err as Error & { status?: number; body?: string; sent?: Record<string, string> }).body = text;
-    (err as Error & { status?: number; body?: string; sent?: Record<string, string> }).sent = sentFields as Record<string, string>;
+    (err as Error & { status?: number; body?: string; sent?: Record<string, string> }).sent =
+      redactJuwaFields(sentFields) as Record<string, string>;
     throw err;
   }
   if (body.code !== 0) {
@@ -162,7 +177,13 @@ export async function juwaCall<T = Record<string, unknown>>(
       message += ` — your server's outbound IP is not whitelisted by Juwa. Contact Juwa support to whitelist this site's egress IP.`;
     }
     const err = new Error(message);
-    type JuwaErr = Error & { code?: number; msg?: string; status?: number; body?: string; sent?: Record<string, string> };
+    type JuwaErr = Error & {
+      code?: number;
+      msg?: string;
+      status?: number;
+      body?: string;
+      sent?: Record<string, string>;
+    };
     (err as JuwaErr).code = body.code;
     (err as JuwaErr).msg = body.msg;
     (err as JuwaErr).status = res.status;

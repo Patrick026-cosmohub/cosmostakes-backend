@@ -6,10 +6,19 @@ import {
   jsonError,
   jsonOk,
   juwaCall,
+  redactJuwaFields,
 } from "./-_helpers.server";
 import { getVblinkConfig, vblinkCall } from "./-_vblink.server";
-import { callRefujRegister, decryptFromRefuj, readRefujRegistrationRequests } from "@/lib/refuj.server";
-import { REFUJ_PLATFORM_GAMES, getRefujIntegration, isRefujPlatform } from "./-_refuj-platforms.server";
+import {
+  callRefujRegister,
+  decryptFromRefuj,
+  readRefujRegistrationRequests,
+} from "@/lib/refuj.server";
+import {
+  REFUJ_PLATFORM_GAMES,
+  getRefujIntegration,
+  isRefujPlatform,
+} from "./-_refuj-platforms.server";
 
 function generateJuwaUsername(): string {
   const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -56,7 +65,11 @@ function readRefujText(value: unknown) {
 }
 
 function generateVblinkUsername(userId: string): string {
-  const cleanId = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toLowerCase() || "player";
+  const cleanId =
+    userId
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .slice(0, 8)
+      .toLowerCase() || "player";
   return `cs${cleanId}${Math.floor(1000 + Math.random() * 9000)}`.slice(0, 16);
 }
 
@@ -71,15 +84,22 @@ function readVblinkFullAccount(data: unknown, fallback: string): string {
     row.account_name,
     row.username,
   ];
-  return candidates.find((value): value is string => typeof value === "string" && value.trim().length > 0)?.trim() ?? fallback;
+  return (
+    candidates
+      .find((value): value is string => typeof value === "string" && value.trim().length > 0)
+      ?.trim() ?? fallback
+  );
 }
 
-const GENERIC_REFUJ_STATUS_RE = /^(added successfully|created successfully|account created|success|completed|pending|request submitted|done|failed)$/i;
+const GENERIC_REFUJ_STATUS_RE =
+  /^(added successfully|created successfully|account created|success|completed|pending|request submitted|done|failed)$/i;
 
 function extractRefujPassword(record: any) {
   const candidates = [record?.password, record?.Password, record?.notes, record?.Notes];
   for (const raw of candidates) {
-    const value = readRefujText(raw).replace(/^Password:\s*/i, "").trim();
+    const value = readRefujText(raw)
+      .replace(/^Password:\s*/i, "")
+      .trim();
     if (!value || value.length > 60 || GENERIC_REFUJ_STATUS_RE.test(value)) continue;
     return value;
   }
@@ -123,20 +143,34 @@ async function waitForRefujRegistration(input: {
       continue;
     }
     const match = refujRecords(result.raw).find((record: any) => {
-      const regId = record.registration_id ?? record.registrationId ?? record.Registration_ID ?? record.request_id;
+      const regId =
+        record.registration_id ??
+        record.registrationId ??
+        record.Registration_ID ??
+        record.request_id;
       if (regId && regId === input.registrationId) return true;
-      const username = readRefujText(record.desire_username ?? record.desired_username ?? record.Desire_Username);
+      const username = readRefujText(
+        record.desire_username ?? record.desired_username ?? record.Desire_Username,
+      );
       return username === input.desiredUsername;
     });
     if (!match) continue;
 
     const status = String(match.status ?? match.Status ?? "").toLowerCase();
     const notes = readRefujText(match.notes ?? match.Notes).toLowerCase();
-    if (status.includes("completed") || status.includes("success") || /added successfully|created successfully|success/i.test(notes)) {
+    if (
+      status.includes("completed") ||
+      status.includes("success") ||
+      /added successfully|created successfully|success/i.test(notes)
+    ) {
       return { status: "completed" as const, password: extractRefujPassword(match), raw: match };
     }
     if (status.includes("failed") || status.includes("error")) {
-      return { status: "failed" as const, reason: readRefujText(match.notes ?? match.Notes) || "REFUJ registration failed", raw: match };
+      return {
+        status: "failed" as const,
+        reason: readRefujText(match.notes ?? match.Notes) || "REFUJ registration failed",
+        raw: match,
+      };
     }
   }
   return { status: "pending" as const };
@@ -164,10 +198,17 @@ async function savePlatformAccount(input: {
     .maybeSingle();
   if (existingError) throw new Error(existingError.message);
   const query = existing?.id
-    ? input.supabaseAdmin.from("platform_accounts" as never).update(payload as never).eq("id", existing.id)
+    ? input.supabaseAdmin
+        .from("platform_accounts" as never)
+        .update(payload as never)
+        .eq("id", existing.id)
     : input.supabaseAdmin.from("platform_accounts" as never).insert(payload as never);
   const { error } = await query;
-  if (error?.code === "23514" || String(error?.message ?? "").includes("platform_accounts_platform_check")) return;
+  if (
+    error?.code === "23514" ||
+    String(error?.message ?? "").includes("platform_accounts_platform_check")
+  )
+    return;
   if (error) throw new Error(error.message);
 }
 
@@ -217,7 +258,11 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             .maybeSingle();
 
           if (existing) {
-            const row = existing as { juwa_user_id: string; juwa_username: string; juwa_password: string };
+            const row = existing as {
+              juwa_user_id: string;
+              juwa_username: string;
+              juwa_password: string;
+            };
             return jsonOk({
               username: row.juwa_username,
               password: row.juwa_password,
@@ -230,12 +275,12 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
 
           const callerAccount = parsed.account ?? parsed.username;
           const callerPwd = parsed.login_pwd ?? parsed.password;
-          let username = callerAccount && VBLINK_ACCOUNT_RE.test(callerAccount)
-            ? callerAccount
-            : generateVblinkUsername(playerSiteUserId);
-          const password = callerPwd && VBLINK_PASSWORD_RE.test(callerPwd)
-            ? callerPwd
-            : generateJuwaPassword();
+          let username =
+            callerAccount && VBLINK_ACCOUNT_RE.test(callerAccount)
+              ? callerAccount
+              : generateVblinkUsername(playerSiteUserId);
+          const password =
+            callerPwd && VBLINK_PASSWORD_RE.test(callerPwd) ? callerPwd : generateJuwaPassword();
 
           let fullAccount = username;
           let lastError: Error | null = null;
@@ -284,7 +329,11 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             .maybeSingle();
 
           const refuj = await getRefujIntegration(platform);
-          const existingRow = existing as { juwa_user_id: string; juwa_username: string; juwa_password: string } | null;
+          const existingRow = existing as {
+            juwa_user_id: string;
+            juwa_username: string;
+            juwa_password: string;
+          } | null;
           if (existingRow?.juwa_username && existingRow?.juwa_password) {
             await savePlatformAccount({
               supabaseAdmin,
@@ -342,20 +391,23 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           }
 
           const callerAccount = parsed.account ?? parsed.username;
-          const username = callerAccount && REFUJ_ACCOUNT_RE.test(callerAccount)
-            ? callerAccount
-            : generateJuwaUsername().replace(/_/g, "").slice(0, 12);
+          const username =
+            callerAccount && REFUJ_ACCOUNT_RE.test(callerAccount)
+              ? callerAccount
+              : generateJuwaUsername().replace(/_/g, "").slice(0, 12);
           const registrationId = generateRefujRegistrationId(playerSiteUserId);
           const email = `${username}${Date.now().toString(36)}@player.cosmostakes.net`;
           const nickname = username.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20) || "Player";
 
-          const { error: pendingInsertError } = await supabaseAdmin.from("platform_players" as never).insert({
-            site_user_id: playerSiteUserId,
-            platform,
-            juwa_user_id: registrationId,
-            juwa_username: username,
-            juwa_password: "",
-          } as never);
+          const { error: pendingInsertError } = await supabaseAdmin
+            .from("platform_players" as never)
+            .insert({
+              site_user_id: playerSiteUserId,
+              platform,
+              juwa_user_id: registrationId,
+              juwa_username: username,
+              juwa_password: "",
+            } as never);
           if (pendingInsertError) return jsonError(500, pendingInsertError.message);
 
           try {
@@ -433,7 +485,11 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           .maybeSingle();
 
         if (existing) {
-          const row = existing as { juwa_user_id: string; juwa_username: string; juwa_password: string };
+          const row = existing as {
+            juwa_user_id: string;
+            juwa_username: string;
+            juwa_password: string;
+          };
           return jsonOk({
             username: row.juwa_username,
             password: row.juwa_password,
@@ -446,13 +502,20 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
         // otherwise generate server-side so the Juwa call never fails on bad input.
         const callerAccount = parsed.account ?? parsed.username;
         const callerPwd = parsed.login_pwd ?? parsed.password;
-        const username = callerAccount && JUWA_ACCOUNT_RE.test(callerAccount)
-          ? callerAccount
-          : generateJuwaUsername();
-        const password = callerPwd && callerPwd.length >= 6 && callerPwd.length <= 20
-          ? callerPwd
-          : generateJuwaPassword();
-        console.log("[juwa create-player] using", { username, passwordLen: password.length, callerProvidedAccount: !!callerAccount, callerProvidedPwd: !!callerPwd });
+        const username =
+          callerAccount && JUWA_ACCOUNT_RE.test(callerAccount)
+            ? callerAccount
+            : generateJuwaUsername();
+        const password =
+          callerPwd && callerPwd.length >= 6 && callerPwd.length <= 20
+            ? callerPwd
+            : generateJuwaPassword();
+        console.log("[juwa create-player] using", {
+          username,
+          passwordLen: password.length,
+          callerProvidedAccount: !!callerAccount,
+          callerProvidedPwd: !!callerPwd,
+        });
 
         let data: { account_name?: string; user_id?: string | number };
         try {
@@ -461,34 +524,44 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             login_pwd: password,
           });
         } catch (e) {
-          const err = e as Error & { code?: number; msg?: string; status?: number; body?: string; sent?: Record<string, string> };
+          const err = e as Error & {
+            code?: number;
+            msg?: string;
+            status?: number;
+            body?: string;
+            sent?: Record<string, string>;
+          };
           try {
             await supabaseAdmin.from("juwa_debug_log" as never).insert({
               platform,
               endpoint: "/api/external/addUser",
-              sent_fields: err.sent ?? { account: username, login_pwd: password },
+              sent_fields: err.sent ?? redactJuwaFields({ account: username, login_pwd: password }),
               response_status: err.status ?? null,
               response_body: err.body ?? null,
               juwa_code: err.code ?? null,
               juwa_msg: err.msg ?? null,
               error_message: err.message,
             } as never);
-          } catch {}
-          return jsonError(502, err.message, { juwa_code: err.code, juwa_msg: err.msg, response_body: err.body });
+          } catch {
+            // Best-effort debug logging should not mask the provider failure response.
+          }
+          return jsonError(502, err.message, {
+            juwa_code: err.code,
+            juwa_msg: err.msg,
+            response_body: err.body,
+          });
         }
 
         const juwaUserId = String(data.user_id ?? "");
         if (!juwaUserId) return jsonError(502, "Juwa addUser missing user_id");
 
-        const { error: insertErr } = await supabaseAdmin
-          .from("platform_players" as never)
-          .insert({
-            site_user_id: playerSiteUserId,
-            platform,
-            juwa_user_id: juwaUserId,
-            juwa_username: data.account_name ?? username,
-            juwa_password: password,
-          } as never);
+        const { error: insertErr } = await supabaseAdmin.from("platform_players" as never).insert({
+          site_user_id: playerSiteUserId,
+          platform,
+          juwa_user_id: juwaUserId,
+          juwa_username: data.account_name ?? username,
+          juwa_password: password,
+        } as never);
         if (insertErr) return jsonError(500, insertErr.message);
 
         return jsonOk({
