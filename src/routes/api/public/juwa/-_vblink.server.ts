@@ -13,6 +13,18 @@ export type VblinkResponse<T = unknown> = {
   data?: T;
 };
 
+function readVblinkMessage(body: VblinkResponse): string {
+  const message = body.message ?? body.msg;
+  if (message) return message;
+  const data = body.data;
+  if (data && typeof data === "object" && "info" in data) {
+    const info = (data as { info?: unknown }).info;
+    if (typeof info === "string") return info;
+    if (info != null) return JSON.stringify(info);
+  }
+  return "";
+}
+
 export async function getVblinkConfig(): Promise<VblinkConfig | null> {
   const envBase = (process.env.VBLINK_BASE_URL ?? process.env.VBLINK_API_URL)?.trim();
   const envAppid = (process.env.VBLINK_APP_ID ?? process.env.VBLINK_APPID)?.trim();
@@ -55,10 +67,11 @@ export async function vblinkCall<T = unknown>(
   path: string,
   fields: Record<string, string | number>,
 ): Promise<VblinkResponse<T>> {
+  const timestampKey = path === "/fast/user/create" ? "Timestamp" : "timestamp";
   const params: Record<string, string> = {
     requestid: makeVblinkRequestId(path),
     appid: config.appid,
-    timestamp: Date.now().toString(),
+    [timestampKey]: Date.now().toString(),
   };
   for (const [key, value] of Object.entries(fields)) {
     params[key] = String(value);
@@ -84,7 +97,7 @@ export async function vblinkCall<T = unknown>(
   }
 
   if (body.code !== 200 && body.code !== 1) {
-    const message = body.message ?? body.msg ?? "";
+    const message = readVblinkMessage(body);
     const err = new Error(`Vblink error ${body.code}: ${message}`);
     type VblinkErr = Error & { code?: number; msg?: string; status?: number; body?: string; sent?: Record<string, string> };
     (err as VblinkErr).code = body.code;
@@ -97,4 +110,3 @@ export async function vblinkCall<T = unknown>(
 
   return body;
 }
-
