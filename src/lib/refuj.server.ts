@@ -9,6 +9,8 @@ export type RefujTransferInput = {
   gameCode?: string | null;
   gameUser?: string | null;
   gamePass?: string | null;
+  apiUsername?: string | null;
+  apiPassword?: string | null;
   customerUsername: string;
   amount: number;
   bonusAmount?: number;
@@ -28,6 +30,8 @@ export type RefujRegisterInput = {
   gameCode?: string | null;
   gameUser?: string | null;
   gamePass?: string | null;
+  apiUsername?: string | null;
+  apiPassword?: string | null;
   desiredUsername: string;
   nickname: string;
   email: string;
@@ -135,6 +139,31 @@ function resolveGameCode(gameName: string, configured?: string | null) {
   if (explicit && /^[A-Za-z0-9_.-]{1,8}$/.test(explicit)) return explicit.toUpperCase();
 
   throw new Error(`No REFUJ game acronym is configured for ${gameName}. Set the game provider to the REFUJ code.`);
+}
+
+function refujApiCredentialFields(
+  gameCode: string,
+  gameUser: string,
+  gamePass: string,
+  passphrase: string,
+  apiUsername?: string | null,
+  apiPassword?: string | null,
+) {
+  const explicitApiUsername = apiUsername?.trim();
+  const explicitApiPassword = apiPassword?.trim();
+  const usesSeparateGameApi = gameCode === "VS";
+  const derivedApiUsername =
+    usesSeparateGameApi && gameUser.toLowerCase().startsWith("account-")
+      ? gameUser.slice("account-".length)
+      : gameUser;
+  const resolvedApiUsername = explicitApiUsername || (usesSeparateGameApi ? derivedApiUsername : "");
+  const resolvedApiPassword = explicitApiPassword || (usesSeparateGameApi ? gamePass : "");
+
+  if (!resolvedApiUsername || !resolvedApiPassword) return {};
+  return {
+    api_username: encryptForRefuj(resolvedApiUsername, passphrase),
+    api_password: encryptForRefuj(resolvedApiPassword, passphrase),
+  };
 }
 
 function apiBase(configured?: string | null) {
@@ -286,6 +315,14 @@ export async function callRefujTransfer(input: RefujTransferInput): Promise<Refu
     amount,
     game_user: encryptForRefuj(gameUser, passphrase),
     game_pass: encryptForRefuj(gamePass, passphrase),
+    ...refujApiCredentialFields(
+      gameCode,
+      gameUser,
+      gamePass,
+      passphrase,
+      input.apiUsername,
+      input.apiPassword,
+    ),
     customer_username: input.customerUsername,
   };
 
