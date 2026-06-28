@@ -884,7 +884,7 @@ export const listStaff = createServerFn({ method: "GET" })
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       supabase
         .from("staff_profiles")
-        .select("id,email,username,full_name,is_active,created_at")
+        .select("id,email,username,full_name,is_active,created_at,password_hash")
         .order("created_at"),
       supabase.from("user_roles").select("user_id,role"),
     ]);
@@ -894,7 +894,15 @@ export const listStaff = createServerFn({ method: "GET" })
       list.push(r.role as string);
       byUser.set(r.user_id, list);
     });
-    return (profiles ?? []).map((p) => ({ ...p, roles: byUser.get(p.id) ?? [] }));
+    return (profiles ?? [])
+      .filter((p) => Boolean((p as { password_hash?: string | null }).password_hash))
+      .map((p) => {
+        const { password_hash: _passwordHash, ...profile } = p as typeof p & {
+          password_hash?: string | null;
+        };
+        return { ...profile, roles: byUser.get(profile.id) ?? [] };
+      })
+      .filter((p) => p.roles.length > 0);
   });
 
 export const setStaffRoles = createServerFn({ method: "POST" })
@@ -1118,7 +1126,7 @@ export const getStaffDetail = createServerFn({ method: "GET" })
       await Promise.all([
         supabase
           .from("staff_profiles")
-          .select("id,email,username,full_name,is_active,created_at")
+          .select("id,email,username,full_name,is_active,created_at,password_hash")
           .eq("id", data.user_id)
           .maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", data.user_id),
@@ -1133,8 +1141,14 @@ export const getStaffDetail = createServerFn({ method: "GET" })
           .select("id", { count: "exact", head: true })
           .eq("staff_id", data.user_id),
       ]);
+    if (!profile || !(profile as { password_hash?: string | null }).password_hash) {
+      throw new Error("Staff account not found");
+    }
+    const { password_hash: _passwordHash, ...safeProfile } = profile as typeof profile & {
+      password_hash?: string | null;
+    };
     return {
-      profile,
+      profile: safeProfile,
       roles: (roles ?? []).map((r) => r.role as string),
       activity: activity ?? [],
       totalActions: actionCount ?? 0,
