@@ -531,7 +531,7 @@ export const listRequests = createServerFn({ method: "GET" })
 
     if (data.kind !== "deposit") return rows ?? [];
 
-    let publicQ = supabase
+    let publicQ: any = supabase
       .from("public_payment_requests" as never)
       .select(
         "id,provider,provider_order_id,provider_payment_id,player_name,game_username,amount_usd,pay_way,provider_status,admin_status,internal_note,processed_at,created_at",
