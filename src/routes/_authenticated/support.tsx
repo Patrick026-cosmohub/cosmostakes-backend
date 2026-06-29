@@ -26,7 +26,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Send, Search, UserPlus, Inbox, MessageSquare, StickyNote } from "lucide-react";
+import {
+  ArrowLeft,
+  Send,
+  Search,
+  UserPlus,
+  Inbox,
+  MessageSquare,
+  StickyNote,
+  ExternalLink,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/support")({
@@ -57,6 +66,10 @@ function timeAgo(iso: string): string {
   if (s < 3600) return `${Math.floor(s / 60)}m`;
   if (s < 86400) return `${Math.floor(s / 3600)}h`;
   return `${Math.floor(s / 86400)}d`;
+}
+
+function isFacebookUsername(value?: string | null) {
+  return Boolean(value?.startsWith("fb:"));
 }
 
 function SupportCenter() {
@@ -159,6 +172,14 @@ function SupportCenter() {
             )}
             {tickets.data?.map((t) => {
               const active = t.id === selectedId;
+              const displayName =
+                t.messenger_user_name ||
+                t.player_name ||
+                t.player_username ||
+                `Player #${t.player_id?.slice(0, 6) ?? "-"}`;
+              const pageName =
+                t.messenger_page_name ||
+                (isFacebookUsername(t.player_username) ? t.game_provider : null);
               return (
                 <button
                   key={t.id}
@@ -169,7 +190,13 @@ function SupportCenter() {
                   )}
                 >
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-medium truncate">
+                    <span className="text-xs font-medium truncate">{displayName}</span>
+                    {pageName && (
+                      <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0">
+                        {pageName}
+                      </Badge>
+                    )}
+                    <span className="hidden">
                       {t.player_name ||
                         t.player_username ||
                         `Player #${t.player_id?.slice(0, 6) ?? "—"}`}
@@ -188,12 +215,13 @@ function SupportCenter() {
                         <span>{t.player_phone}</span>
                       </>
                     )}
-                    {t.game_provider && (
+                    {t.player_username && !isFacebookUsername(t.player_username) && (
                       <>
                         <span>·</span>
-                        <span>{t.game_provider}</span>
+                        <span>@{t.player_username}</span>
                       </>
                     )}
+                    {pageName && <span>Page: {pageName}</span>}
                   </div>
                   <div className="text-[11px] text-muted-foreground line-clamp-1">
                     {t.last_message_sender === "staff" && (
@@ -313,6 +341,7 @@ function ConversationPane({ ticketId, onBack }: { ticketId: string; onBack?: () 
 
   const t = ticket.data;
   const items = useMemo(() => messages.data ?? [], [messages.data]);
+  const pageName = t?.messenger_page_name || (isFacebookUsername(t?.player_username) ? t?.game_provider : null);
 
   return (
     <>
@@ -336,10 +365,18 @@ function ConversationPane({ ticketId, onBack }: { ticketId: string; onBack?: () 
             <span className="text-muted-foreground font-normal whitespace-nowrap">
               #{t?.ticket_number}
             </span>
+            {pageName && (
+              <Badge variant="outline" className="ml-2 align-middle text-[10px]">
+                Page: {pageName}
+              </Badge>
+            )}
           </div>
           <div className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 break-all">
             {t?.player_phone && <span>{t.player_phone}</span>}
-            {t?.player_username && <span>@{t.player_username}</span>}
+            {t?.player_username && !isFacebookUsername(t.player_username) && (
+              <span>@{t.player_username}</span>
+            )}
+            {pageName && <span>Messenger page: {pageName}</span>}
             {t?.game_provider && <span>· {t.game_provider}</span>}
             {t?.issue_type && <span>· {t.issue_type}</span>}
           </div>
@@ -443,6 +480,10 @@ function ConversationPane({ ticketId, onBack }: { ticketId: string; onBack?: () 
                 >
                   <div className="max-w-[88%] sm:max-w-[70%] min-w-0">
                     <div className="text-[10px] text-muted-foreground mb-0.5 px-1 break-words">
+                      {isPlayer ? (m.sender_name ?? "Player") : isBot ? "Bot" : (m.sender_name ?? "Staff")} ·{" "}
+                      {new Date(m.created_at).toLocaleString()}
+                    </div>
+                    <div className="hidden">
                       {isPlayer ? "Player" : isBot ? "Bot" : (m.sender_name ?? "Staff")} ·{" "}
                       {new Date(m.created_at).toLocaleString()}
                     </div>
@@ -455,15 +496,27 @@ function ConversationPane({ ticketId, onBack }: { ticketId: string; onBack?: () 
                       )}
                     >
                       {m.body}
-                      {m.attachment_url && (
-                        <a
-                          href={m.attachment_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block mt-1 text-xs underline opacity-80"
-                        >
-                          View attachment
-                        </a>
+                      {m.attachment_proxy_url && (
+                        <div className="mt-2 space-y-1.5">
+                          {m.attachment_is_image && (
+                            <a href={m.attachment_proxy_url} target="_blank" rel="noreferrer">
+                              <img
+                                src={m.attachment_proxy_url}
+                                alt="Message attachment"
+                                className="max-h-72 w-auto max-w-full rounded-md border border-border object-contain bg-background"
+                                loading="lazy"
+                              />
+                            </a>
+                          )}
+                          <a
+                            href={m.attachment_proxy_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs underline opacity-80"
+                          >
+                            Open attachment <ExternalLink className="size-3" />
+                          </a>
+                        </div>
                       )}
                     </div>
                   </div>

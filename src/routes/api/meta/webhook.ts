@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import crypto from "node:crypto";
+import {
+  fallbackFacebookUserName,
+  fetchMetaUserProfile,
+  pageNameForId,
+} from "@/lib/meta-messenger.server";
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || "HK0N5_omZ3UFwHhmiPv9VTs6joulPnC1";
 const APP_SECRET = process.env.META_APP_SECRET?.trim();
@@ -60,13 +65,13 @@ async function ensureMetaPage(supabase: any, pageId: string) {
   const { error } = await supabase.from("meta_pages" as never).upsert(
     {
       page_id: pageId,
-      page_name: pageId,
+      page_name: pageNameForId(pageId),
       token_status: "unknown",
       token_source: "webhook",
       is_enabled: true,
       updated_at: new Date().toISOString(),
     } as never,
-    { onConflict: "page_id", ignoreDuplicates: true },
+    { onConflict: "page_id" },
   );
   if (error) throw error;
 }
@@ -77,6 +82,8 @@ async function getOrCreateSupportTicket(
   psid: string,
   body: string,
   senderType: "player" | "staff",
+  userName: string,
+  pageName: string,
 ) {
   void body;
   void senderType;
@@ -99,9 +106,9 @@ async function getOrCreateSupportTicket(
       .from("support_tickets" as never)
       .insert({
         player_id: null,
-        player_name: `Facebook User ${psid.slice(-6)}`,
+        player_name: userName,
         player_username: playerUsername,
-        game_provider: "facebook",
+        game_provider: pageName,
         issue_type: "messenger",
         status: "new",
         unread_count_staff: 0,
@@ -110,6 +117,14 @@ async function getOrCreateSupportTicket(
       .single();
     if (created.error) throw created.error;
     ticketId = (created.data as any).id;
+  } else {
+    await supabase
+      .from("support_tickets" as never)
+      .update({
+        player_name: userName,
+        game_provider: pageName,
+      } as never)
+      .eq("id", ticketId);
   }
 
   return ticketId;
@@ -148,8 +163,19 @@ async function upsertMetaMessage(pageId: string, event: any) {
   const direction = isEcho ? "outgoing" : "incoming";
   const senderType = isEcho ? "staff" : "player";
   const externalId = externalMessageId(event);
+  const pageName = pageNameForId(pageId);
+  const profile = senderType === "player" ? await fetchMetaUserProfile(supabaseAdmin, pageId, psid) : null;
+  const userName = profile?.name || fallbackFacebookUserName(psid);
 
-  const ticketId = await getOrCreateSupportTicket(supabaseAdmin, pageId, psid, body, senderType);
+  const ticketId = await getOrCreateSupportTicket(
+    supabaseAdmin,
+    pageId,
+    psid,
+    body,
+    senderType,
+    userName,
+    pageName,
+  );
   const createdAt = new Date(Number(event?.timestamp) || Date.now()).toISOString();
 
   const recent = await supabaseAdmin
@@ -191,6 +217,7 @@ async function upsertMetaMessage(pageId: string, event: any) {
           page_id: pageId,
           psid,
           support_ticket_id: ticketId,
+          user_name: userName,
           last_message_at: createdAt,
           unread_count_staff: senderType === "player" ? 1 : 0,
           updated_at: new Date().toISOString(),
