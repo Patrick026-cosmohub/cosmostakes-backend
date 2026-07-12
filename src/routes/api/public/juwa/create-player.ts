@@ -45,6 +45,67 @@ function generateJuwaPassword(): string {
   return pwd;
 }
 
+const PLATFORM_USERNAME_MAX_LENGTH = 12;
+const PLATFORM_USERNAME_RANDOM_LENGTH = 3;
+const PLATFORM_USERNAME_SUFFIX = {
+  juwa: "ju",
+  juwa2: "j2",
+  gamevault: "gv",
+  vblink: "vb",
+  firekirin: "fk",
+  milkyway: "mw",
+  orionstars: "os",
+  pandamaster: "pm",
+  lasvegassweeps: "vs",
+  highstakes: "hs",
+} as const;
+const PLATFORM_USERNAME_ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789";
+
+type ManagedPlatform = keyof typeof PLATFORM_USERNAME_SUFFIX;
+type PlayerProfileName = {
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+};
+
+function randomFrom(alphabet: string) {
+  const rand = new Uint32Array(1);
+  crypto.getRandomValues(rand);
+  return alphabet[rand[0] % alphabet.length] ?? alphabet[0];
+}
+
+function usernamePart(value: unknown) {
+  return typeof value === "string" && value.trim()
+    ? value.toLowerCase().replace(/[^a-z0-9]/g, "")
+    : "";
+}
+
+function createPlatformUsername(input: {
+  userId: string;
+  platform: ManagedPlatform;
+  profile?: PlayerProfileName | null;
+}) {
+  const firstName = usernamePart(input.profile?.first_name);
+  const lastName = usernamePart(input.profile?.last_name);
+  const email = usernamePart(input.profile?.email?.split("@")[0]);
+  const userIdFallback = usernamePart(input.userId).slice(0, 8);
+  const suffix = PLATFORM_USERNAME_SUFFIX[input.platform];
+  const randomPart = Array.from({ length: PLATFORM_USERNAME_RANDOM_LENGTH }, () =>
+    randomFrom(PLATFORM_USERNAME_ALPHABET),
+  ).join("");
+  const nameStem =
+    firstName && lastName
+      ? `${firstName.slice(0, 1)}${lastName}`
+      : firstName || lastName || email || `cs${userIdFallback || "player"}`;
+  const stemMaxLength = Math.max(
+    1,
+    PLATFORM_USERNAME_MAX_LENGTH - randomPart.length - suffix.length,
+  );
+  const alphaStem = /^[a-z]/.test(nameStem) ? nameStem : `p${nameStem}`;
+  const stem = alphaStem.slice(0, stemMaxLength) || "cs";
+  return `${stem}${randomPart}${suffix}`.slice(0, PLATFORM_USERNAME_MAX_LENGTH);
+}
+
 function generateRefujRegistrationId(userId: string) {
   const userPart = userId.replace(/[^a-fA-F0-9]/g, "").slice(0, 10) || "player";
   const random = new Uint8Array(4);
@@ -271,6 +332,18 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
         const { platform, playerSiteUserId } = parsed;
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: profile, error: profileError } = await supabaseAdmin
+          .from("profiles")
+          .select("email,first_name,last_name")
+          .eq("id", playerSiteUserId)
+          .maybeSingle();
+        if (profileError) return jsonError(500, profileError.message);
+        const patternedUsername = () =>
+          createPlatformUsername({
+            userId: playerSiteUserId,
+            platform,
+            profile: profile as PlayerProfileName | null,
+          });
 
         if (platform === "vblink") {
           const { data: existing } = await supabaseAdmin
@@ -301,7 +374,7 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
           let username =
             callerAccount && VBLINK_ACCOUNT_RE.test(callerAccount)
               ? callerAccount
-              : generateVblinkUsername(playerSiteUserId);
+              : patternedUsername();
           const password =
             callerPwd && VBLINK_PASSWORD_RE.test(callerPwd) ? callerPwd : generateJuwaPassword();
 
@@ -320,7 +393,7 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
               const err = e as Error & { code?: number };
               lastError = err;
               if (err.code !== 12 || callerAccount) break;
-              username = generateVblinkUsername(playerSiteUserId);
+              username = patternedUsername();
             }
           }
           if (lastError) return jsonError(502, lastError.message);
@@ -502,7 +575,11 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             });
           }
 
-          const username = generateJuwaUsername().replace(/_/g, "").slice(0, 12);
+          const callerAccount = parsed.account ?? parsed.username;
+          const username =
+            callerAccount && REFUJ_ACCOUNT_RE.test(callerAccount)
+              ? callerAccount
+              : patternedUsername();
           const registrationId = generateRefujRegistrationId(playerSiteUserId);
           const email = `${username}${Date.now().toString(36)}@player.cosmostakes.net`;
           const nickname = username.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20) || "Player";
@@ -601,7 +678,7 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
         const username =
           callerAccount && JUWA_ACCOUNT_RE.test(callerAccount)
             ? callerAccount
-            : generateJuwaUsername();
+            : patternedUsername();
         const password =
           callerPwd && callerPwd.length >= 6 && callerPwd.length <= 20
             ? callerPwd
