@@ -498,11 +498,7 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             });
           }
 
-          const callerAccount = parsed.account ?? parsed.username;
-          const username =
-            callerAccount && REFUJ_ACCOUNT_RE.test(callerAccount)
-              ? callerAccount
-              : generateJuwaUsername().replace(/_/g, "").slice(0, 12);
+          const username = generateJuwaUsername().replace(/_/g, "").slice(0, 12);
           const registrationId = generateRefujRegistrationId(playerSiteUserId);
           const email = `${username}${Date.now().toString(36)}@player.cosmostakes.net`;
           const nickname = username.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20) || "Player";
