@@ -360,7 +360,7 @@ export async function callRefujTransfer(input: RefujTransferInput): Promise<Refu
 }
 
 export async function callRefujRegister(input: RefujRegisterInput): Promise<RefujRegisterResult> {
-  const { secretKey } = masterConfig();
+  const { secretKey, passphrase } = masterConfig();
   const gameUser = input.gameUser?.trim() || env("REFUJ_DEFAULT_GAME_USER");
   const gamePass = input.gamePass?.trim() || env("REFUJ_DEFAULT_GAME_PASS");
   if (!gameUser || !gamePass) {
@@ -368,15 +368,26 @@ export async function callRefujRegister(input: RefujRegisterInput): Promise<Refu
   }
 
   const gameCode = resolveGameCode(input.gameName, input.gameCode);
+  const encryptRegistrationFields = gameCode === "VS";
+  const registrationValue = (value: string) =>
+    encryptRegistrationFields ? encryptForRefuj(value, passphrase) : value;
   const payload = {
     secret_key: secretKey,
     registration_id: input.registrationId,
     gaming_site: gameCode,
-    email: input.email,
-    nickname: input.nickname,
-    desire_username: input.desiredUsername,
-    game_user: gameUser,
-    game_pass: gamePass,
+    email: registrationValue(input.email),
+    nickname: registrationValue(input.nickname),
+    desire_username: registrationValue(input.desiredUsername),
+    game_user: registrationValue(gameUser),
+    game_pass: registrationValue(gamePass),
+    ...refujApiCredentialFields(
+      gameCode,
+      gameUser,
+      gamePass,
+      passphrase,
+      input.apiUsername,
+      input.apiPassword,
+    ),
   };
 
   const { status, body } = await postRefuj("/credits/add_game_user", payload, input.apiBase);
