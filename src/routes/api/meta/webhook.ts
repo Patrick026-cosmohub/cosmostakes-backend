@@ -6,7 +6,8 @@ import {
   pageNameForId,
 } from "@/lib/meta-messenger.server";
 
-const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || "HK0N5_omZ3UFwHhmiPv9VTs6joulPnC1";
+const VERIFY_TOKEN =
+  process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || "HK0N5_omZ3UFwHhmiPv9VTs6joulPnC1";
 const APP_SECRET = process.env.META_APP_SECRET?.trim();
 
 function json(body: unknown, status = 200) {
@@ -34,7 +35,9 @@ function previewFromMessage(message: any) {
 
 function attachmentUrlFromMessage(message: any) {
   const attachments = Array.isArray(message?.attachments) ? message.attachments : [];
-  const withUrl = attachments.find((attachment: any) => typeof attachment?.payload?.url === "string");
+  const withUrl = attachments.find(
+    (attachment: any) => typeof attachment?.payload?.url === "string",
+  );
   return withUrl?.payload?.url ?? null;
 }
 
@@ -58,21 +61,44 @@ async function verifySignature(request: Request, rawBody: string) {
   const actual = signature.slice("sha256=".length);
   const expectedBuffer = Buffer.from(expected, "hex");
   const actualBuffer = Buffer.from(actual, "hex");
-  return expectedBuffer.length === actualBuffer.length && crypto.timingSafeEqual(expectedBuffer, actualBuffer);
+  return (
+    expectedBuffer.length === actualBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, actualBuffer)
+  );
 }
 
 async function ensureMetaPage(supabase: any, pageId: string) {
-  const { error } = await supabase.from("meta_pages" as never).upsert(
-    {
+  const now = new Date().toISOString();
+  const fallbackName = pageNameForId(pageId);
+  const existing = await supabase
+    .from("meta_pages" as never)
+    .select("page_id,page_name")
+    .eq("page_id", pageId)
+    .maybeSingle();
+  if (existing.error) throw existing.error;
+
+  if (!(existing.data as any)?.page_id) {
+    const { error } = await supabase.from("meta_pages" as never).insert({
       page_id: pageId,
-      page_name: pageNameForId(pageId),
+      page_name: fallbackName,
       token_status: "unknown",
       token_source: "webhook",
       is_enabled: true,
-      updated_at: new Date().toISOString(),
-    } as never,
-    { onConflict: "page_id" },
-  );
+      updated_at: now,
+    } as never);
+    if (error) throw error;
+    return;
+  }
+
+  const currentName = String((existing.data as any)?.page_name || "");
+  const shouldRefreshName = !currentName || /^Facebook Page \d+$/i.test(currentName);
+  const { error } = await supabase
+    .from("meta_pages" as never)
+    .update({
+      ...(shouldRefreshName ? { page_name: fallbackName } : {}),
+      updated_at: now,
+    } as never)
+    .eq("page_id", pageId);
   if (error) throw error;
 }
 
@@ -151,8 +177,6 @@ async function upsertMetaMessage(pageId: string, event: any) {
   if (!message) return;
 
   const isEcho = Boolean(message?.is_echo);
-  if (isEcho) return;
-
   const psid = String(isEcho ? event?.recipient?.id : event?.sender?.id);
   if (!psid || psid === "undefined") return;
 
@@ -164,8 +188,20 @@ async function upsertMetaMessage(pageId: string, event: any) {
   const senderType = isEcho ? "staff" : "player";
   const externalId = externalMessageId(event);
   const pageName = pageNameForId(pageId);
-  const profile = senderType === "player" ? await fetchMetaUserProfile(supabaseAdmin, pageId, psid) : null;
+  const profile =
+    senderType === "player" ? await fetchMetaUserProfile(supabaseAdmin, pageId, psid) : null;
   const userName = profile?.name || fallbackFacebookUserName(psid);
+
+  if (externalId) {
+    const duplicate = await supabaseAdmin
+      .from("meta_messages" as never)
+      .select("id")
+      .eq("page_id", pageId)
+      .eq("external_message_id", externalId)
+      .maybeSingle();
+    if (duplicate.error) throw duplicate.error;
+    if ((duplicate.data as any)?.id) return;
+  }
 
   const ticketId = await getOrCreateSupportTicket(
     supabaseAdmin,
@@ -177,35 +213,6 @@ async function upsertMetaMessage(pageId: string, event: any) {
     pageName,
   );
   const createdAt = new Date(Number(event?.timestamp) || Date.now()).toISOString();
-
-  const recent = await supabaseAdmin
-    .from("chat_messages" as never)
-    .select("id")
-    .eq("ticket_id", ticketId)
-    .eq("sender_type", senderType)
-    .eq("body", body)
-    .gte("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (recent.error) throw recent.error;
-  if ((recent.data as any)?.id) return;
-
-  const supportMessage = await supabaseAdmin
-    .from("chat_messages" as never)
-    .insert({
-      ticket_id: ticketId,
-      sender_type: senderType,
-      sender_id: null,
-      body,
-      attachment_url: attachmentUrl,
-      read_by_staff: senderType !== "player",
-      created_at: createdAt,
-    } as never)
-    .select("id")
-    .single();
-  if (supportMessage.error) throw supportMessage.error;
-  const supportChatMessageId = (supportMessage.data as any).id;
 
   try {
     await ensureMetaPage(supabaseAdmin, pageId);
@@ -227,6 +234,42 @@ async function upsertMetaMessage(pageId: string, event: any) {
       .select("id")
       .single();
     if (conversation.error) throw conversation.error;
+
+    let supportChatMessageId: string | null = null;
+    if (senderType === "staff") {
+      supportChatMessageId = await matchingRecentStaffMessage(supabaseAdmin, ticketId, body);
+    } else {
+      const recent = await supabaseAdmin
+        .from("chat_messages" as never)
+        .select("id")
+        .eq("ticket_id", ticketId)
+        .eq("sender_type", senderType)
+        .eq("body", body)
+        .gte("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (recent.error) throw recent.error;
+      supportChatMessageId = ((recent.data as any)?.id as string | undefined) ?? null;
+    }
+
+    if (!supportChatMessageId) {
+      const supportMessage = await supabaseAdmin
+        .from("chat_messages" as never)
+        .insert({
+          ticket_id: ticketId,
+          sender_type: senderType,
+          sender_id: null,
+          body,
+          attachment_url: attachmentUrl,
+          read_by_staff: senderType !== "player",
+          created_at: createdAt,
+        } as never)
+        .select("id")
+        .single();
+      if (supportMessage.error) throw supportMessage.error;
+      supportChatMessageId = (supportMessage.data as any).id;
+    }
 
     const metaMessage = await supabaseAdmin.from("meta_messages" as never).insert({
       conversation_id: (conversation.data as any).id,

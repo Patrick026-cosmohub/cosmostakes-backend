@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Role } from "@/lib/format";
@@ -18,6 +19,12 @@ function assertSupportAccess(ctx: SupportContext) {
   }
 }
 
+function assertSupportAdminAccess(ctx: SupportContext) {
+  if (!hasPermission((ctx.roles ?? []) as Role[], "support.admin")) {
+    throw new Error("Forbidden: support.admin required");
+  }
+}
+
 const TICKET_STATUSES = [
   "new",
   "waiting",
@@ -32,6 +39,41 @@ const TabSchema = z.enum(["new", "waiting", "mine", "in_progress", "resolved", "
 
 function envTokenNameForPage(pageId: string) {
   return `META_PAGE_ACCESS_TOKEN_${pageId.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}`;
+}
+
+function messengerWebhookUrl() {
+  const requestUrl = getRequest()?.url;
+  const origin =
+    process.env.PUBLIC_SITE_URL?.trim() ||
+    process.env.APP_URL?.trim() ||
+    (requestUrl ? new URL(requestUrl).origin : "");
+  return origin ? `${origin.replace(/\/$/, "")}/api/meta/webhook` : "/api/meta/webhook";
+}
+
+async function validateMetaPageToken(token: string, expectedPageId?: string | null) {
+  const graphVersion = process.env.META_GRAPH_API_VERSION?.trim() || "v24.0";
+  const url = new URL(`https://graph.facebook.com/${graphVersion}/me`);
+  url.searchParams.set("fields", "id,name");
+  url.searchParams.set("access_token", token);
+
+  const response = await fetch(url);
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      typeof body?.error?.message === "string"
+        ? body.error.message
+        : `Meta token check failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  const pageId = typeof body?.id === "string" ? body.id : "";
+  const pageName = typeof body?.name === "string" ? body.name : "";
+  if (!pageId) throw new Error("Meta token check did not return a page id.");
+  if (expectedPageId && pageId !== expectedPageId) {
+    throw new Error(`This token belongs to page ${pageId}, not ${expectedPageId}.`);
+  }
+
+  return { pageId, pageName: pageName || pageNameForId(pageId) };
 }
 
 type TicketLike = {
@@ -66,7 +108,7 @@ async function loadMessengerDetails(supabase: any, tickets: TicketLike[]) {
     .from("meta_pages" as never)
     .select("page_id,page_name")
     .in("page_id", pageIds);
-  for (const page of ((pages ?? []) as any[])) {
+  for (const page of (pages ?? []) as any[]) {
     if (page.page_id && page.page_name) pageNames.set(String(page.page_id), String(page.page_name));
   }
 
@@ -96,6 +138,179 @@ async function loadMessengerDetails(supabase: any, tickets: TicketLike[]) {
 
   return byTicket;
 }
+
+export const listMessengerPages = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    assertSupportAccess(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("meta_pages" as never)
+      .select(
+        "page_id,page_name,page_access_token,token_status,token_source,is_enabled,last_error,updated_at,created_at",
+      )
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    return {
+      webhookUrl: messengerWebhookUrl(),
+      verifyTokenConfigured: Boolean(process.env.META_WEBHOOK_VERIFY_TOKEN?.trim()),
+      appSecretConfigured: Boolean(process.env.META_APP_SECRET?.trim()),
+      pages: ((data ?? []) as any[]).map((page) => ({
+        page_id: String(page.page_id),
+        page_name: page.page_name ? String(page.page_name) : pageNameForId(String(page.page_id)),
+        has_token: Boolean(String(page.page_access_token || "").trim()),
+        token_status: String(page.token_status || "unknown"),
+        token_source: page.token_source ? String(page.token_source) : null,
+        is_enabled: page.is_enabled !== false,
+        last_error: page.last_error ? String(page.last_error) : null,
+        updated_at: String(page.updated_at || page.created_at || new Date().toISOString()),
+      })),
+    };
+  });
+
+export const saveMessengerPage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: { pageId: string; pageName?: string; pageAccessToken?: string; isEnabled?: boolean }) => ({
+      pageId: z
+        .string()
+        .trim()
+        .min(3)
+        .max(80)
+        .regex(/^\d+$/, "Page ID must be numeric")
+        .parse(d.pageId),
+      pageName: z
+        .string()
+        .trim()
+        .max(120)
+        .optional()
+        .parse(d.pageName || undefined),
+      pageAccessToken: z
+        .string()
+        .trim()
+        .max(2000)
+        .optional()
+        .parse(d.pageAccessToken || undefined),
+      isEnabled: d.isEnabled !== false,
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    assertSupportAdminAccess(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const existing = await supabaseAdmin
+      .from("meta_pages" as never)
+      .select("page_name,token_status,token_source,last_error")
+      .eq("page_id", data.pageId)
+      .maybeSingle();
+    if (existing.error) throw new Error(existing.error.message);
+
+    let pageName =
+      data.pageName ||
+      String((existing.data as any)?.page_name || "") ||
+      pageNameForId(data.pageId);
+    let tokenStatus = data.pageAccessToken
+      ? "connected"
+      : String((existing.data as any)?.token_status || "unknown");
+    let tokenSource = data.pageAccessToken
+      ? "admin"
+      : String((existing.data as any)?.token_source || "manual");
+    let lastError: string | null = data.pageAccessToken
+      ? null
+      : (existing.data as any)?.last_error
+        ? String((existing.data as any).last_error)
+        : null;
+
+    if (data.pageAccessToken) {
+      try {
+        const validated = await validateMetaPageToken(data.pageAccessToken, data.pageId);
+        pageName = validated.pageName;
+      } catch (error) {
+        tokenStatus = "invalid";
+        lastError = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    const payload: Record<string, unknown> = {
+      page_id: data.pageId,
+      page_name: pageName,
+      token_status: tokenStatus,
+      token_source: tokenSource,
+      is_enabled: data.isEnabled,
+      last_error: lastError,
+      updated_at: new Date().toISOString(),
+    };
+    if (data.pageAccessToken) payload.page_access_token = data.pageAccessToken;
+
+    const { error } = await supabaseAdmin.from("meta_pages" as never).upsert(payload as never, {
+      onConflict: "page_id",
+    });
+    if (error) throw new Error(error.message);
+
+    await supabaseAdmin.from("audit_logs" as never).insert({
+      action: "messenger.page.save",
+      entity_type: "meta_page",
+      entity_id: data.pageId,
+      staff_id: context.userId,
+      metadata: { page_name: pageName, token_status: tokenStatus, is_enabled: data.isEnabled },
+    } as never);
+
+    return { ok: true, pageId: data.pageId, pageName, tokenStatus, lastError };
+  });
+
+export const testMessengerPage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { pageId: string }) => ({
+    pageId: z
+      .string()
+      .trim()
+      .min(3)
+      .max(80)
+      .regex(/^\d+$/, "Page ID must be numeric")
+      .parse(d.pageId),
+  }))
+  .handler(async ({ data, context }) => {
+    assertSupportAdminAccess(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: page, error } = await supabaseAdmin
+      .from("meta_pages" as never)
+      .select("page_access_token")
+      .eq("page_id", data.pageId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const token =
+      String((page as any)?.page_access_token || "").trim() ||
+      process.env[envTokenNameForPage(data.pageId)]?.trim() ||
+      "";
+    if (!token) throw new Error("No page access token saved for this page.");
+
+    try {
+      const validated = await validateMetaPageToken(token, data.pageId);
+      const now = new Date().toISOString();
+      const { error: updateError } = await supabaseAdmin
+        .from("meta_pages" as never)
+        .update({
+          page_name: validated.pageName,
+          token_status: "connected",
+          last_error: null,
+          updated_at: now,
+        } as never)
+        .eq("page_id", data.pageId);
+      if (updateError) throw new Error(updateError.message);
+      return { ok: true, pageId: data.pageId, pageName: validated.pageName };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await supabaseAdmin
+        .from("meta_pages" as never)
+        .update({
+          token_status: "invalid",
+          last_error: message,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq("page_id", data.pageId);
+      throw new Error(message);
+    }
+  });
 
 async function sendMetaPageReplyIfNeeded(supabase: any, ticketId: string, body: string) {
   const { data: ticket, error } = await supabase
@@ -234,7 +449,9 @@ export const listTickets = createServerFn({ method: "GET" })
         messenger_page_id: messenger?.pageId ?? null,
         messenger_page_name: messenger?.pageName ?? null,
         messenger_user_name: messenger?.userName ?? null,
-        assigned_staff_name: t.assigned_staff_id ? (staffMap.get(t.assigned_staff_id) ?? null) : null,
+        assigned_staff_name: t.assigned_staff_id
+          ? (staffMap.get(t.assigned_staff_id) ?? null)
+          : null,
       };
     });
   });
@@ -336,7 +553,9 @@ export const getMessages = createServerFn({ method: "GET" })
       .select("id,player_name,player_username,game_provider")
       .eq("id", data.ticketId)
       .maybeSingle();
-    const messenger = ticket ? (await loadMessengerDetails(supabase, [ticket])).get(ticket.id) : null;
+    const messenger = ticket
+      ? (await loadMessengerDetails(supabase, [ticket])).get(ticket.id)
+      : null;
     const playerSenderName = messenger?.userName ?? ticket?.player_name ?? "Player";
 
     // mark player messages as read

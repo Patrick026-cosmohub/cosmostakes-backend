@@ -13,12 +13,24 @@ import {
   addNote,
   listNotes,
   listAssignableStaff,
+  listMessengerPages,
+  saveMessengerPage,
+  testMessengerPage,
 } from "@/lib/support.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -35,8 +47,11 @@ import {
   MessageSquare,
   StickyNote,
   ExternalLink,
+  Link2,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/support")({
   component: SupportCenter,
@@ -77,6 +92,7 @@ function SupportCenter() {
   const [tab, setTab] = useState<string>("new");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pagesOpen, setPagesOpen] = useState(false);
 
   const fetchList = useServerFn(listTickets);
   const fetchCounts = useServerFn(ticketCounts);
@@ -114,10 +130,17 @@ function SupportCenter() {
   return (
     <div className="h-[calc(100dvh-3.5rem)] flex flex-col overflow-hidden">
       <div className="px-4 lg:px-6 py-4 border-b border-border">
-        <h1 className="text-lg font-semibold">Support Center</h1>
-        <p className="text-xs text-muted-foreground">
-          Live player chat — accept, reply, assign, resolve.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-semibold">Support Center</h1>
+            <p className="text-xs text-muted-foreground">
+              Live player chat — accept, reply, assign, resolve.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setPagesOpen(true)}>
+            <Link2 className="mr-2 size-3.5" /> Messenger Pages
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
@@ -267,7 +290,239 @@ function SupportCenter() {
           )}
         </div>
       </div>
+
+      <MessengerPagesDialog open={pagesOpen} onOpenChange={setPagesOpen} />
     </div>
+  );
+}
+
+function MessengerPagesDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const qc = useQueryClient();
+  const fetchPages = useServerFn(listMessengerPages);
+  const savePage = useServerFn(saveMessengerPage);
+  const testPage = useServerFn(testMessengerPage);
+  const pages = useQuery({
+    queryKey: ["messenger-pages"],
+    queryFn: () => fetchPages(),
+    enabled: open,
+  });
+
+  const [pageId, setPageId] = useState("");
+  const [pageName, setPageName] = useState("");
+  const [pageAccessToken, setPageAccessToken] = useState("");
+  const [isEnabled, setIsEnabled] = useState(true);
+
+  const resetForm = () => {
+    setPageId("");
+    setPageName("");
+    setPageAccessToken("");
+    setIsEnabled(true);
+  };
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      savePage({
+        data: {
+          pageId: pageId.trim(),
+          pageName: pageName.trim() || undefined,
+          pageAccessToken: pageAccessToken.trim() || undefined,
+          isEnabled,
+        },
+      }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["messenger-pages"] });
+      setPageAccessToken("");
+      if (result.lastError) {
+        toast.warning("Page saved, but token test failed", { description: result.lastError });
+      } else {
+        toast.success("Messenger page saved");
+      }
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not save Messenger page"),
+  });
+
+  const testMut = useMutation({
+    mutationFn: (id: string) => testPage({ data: { pageId: id } }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["messenger-pages"] });
+      toast.success(`${result.pageName} token is connected`);
+    },
+    onError: (error: Error) => toast.error(error.message || "Token test failed"),
+  });
+
+  const copyWebhook = async () => {
+    if (!pages.data?.webhookUrl) return;
+    await navigator.clipboard.writeText(pages.data.webhookUrl);
+    toast.success("Webhook URL copied");
+  };
+
+  const editPage = (page: { page_id: string; page_name: string; is_enabled: boolean }) => {
+    setPageId(page.page_id);
+    setPageName(page.page_name);
+    setPageAccessToken("");
+    setIsEnabled(page.is_enabled);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[88dvh] max-w-3xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Messenger Pages</DialogTitle>
+          <DialogDescription>
+            Connect Facebook pages to Support Center. Page tokens stay server-side.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          <div className="rounded-md border border-border p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Meta webhook
+            </div>
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={pages.data?.webhookUrl ?? "/api/meta/webhook"}
+                className="font-mono text-xs"
+              />
+              <Button type="button" variant="outline" size="sm" onClick={copyWebhook}>
+                Copy
+              </Button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+              <span>
+                Verify token: {pages.data?.verifyTokenConfigured ? "configured" : "default/local"}
+              </span>
+              <span>
+                App secret: {pages.data?.appSecretConfigured ? "configured" : "not configured"}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="messenger-page-id">Page ID</Label>
+              <Input
+                id="messenger-page-id"
+                value={pageId}
+                onChange={(e) => setPageId(e.target.value.replace(/\D/g, ""))}
+                placeholder="612225081965764"
+                inputMode="numeric"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="messenger-page-name">Page name</Label>
+              <Input
+                id="messenger-page-name"
+                value={pageName}
+                onChange={(e) => setPageName(e.target.value)}
+                placeholder="Cosmo Stakes"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="messenger-page-token">Page access token</Label>
+              <Input
+                id="messenger-page-token"
+                value={pageAccessToken}
+                onChange={(e) => setPageAccessToken(e.target.value)}
+                placeholder="Paste a new token only when adding or replacing it"
+                type="password"
+                autoComplete="off"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={isEnabled}
+                onCheckedChange={setIsEnabled}
+                id="messenger-page-enabled"
+              />
+              <Label htmlFor="messenger-page-enabled">Enabled</Label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={resetForm}>
+                Clear
+              </Button>
+              <Button
+                type="button"
+                onClick={() => saveMut.mutate()}
+                disabled={!pageId.trim() || saveMut.isPending}
+              >
+                {saveMut.isPending && <RefreshCw className="mr-2 size-3.5 animate-spin" />}
+                Save Page
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Connected pages
+            </div>
+            {pages.isLoading && (
+              <div className="text-xs text-muted-foreground">Loading pages...</div>
+            )}
+            {pages.data?.pages.length === 0 && (
+              <div className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                No Messenger pages saved yet.
+              </div>
+            )}
+            {pages.data?.pages.map((page) => (
+              <div
+                key={page.page_id}
+                className="flex flex-col gap-3 rounded-md border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-sm font-medium">{page.page_name}</span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {page.is_enabled ? "Enabled" : "Disabled"}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[10px]",
+                        page.token_status === "connected" &&
+                          "border-emerald-500/30 text-emerald-500",
+                        page.token_status === "invalid" && "border-destructive/30 text-destructive",
+                      )}
+                    >
+                      {page.has_token ? page.token_status : "no token"}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                    {page.page_id}
+                    {page.token_source ? ` | ${page.token_source}` : ""}
+                  </div>
+                  {page.last_error && (
+                    <div className="mt-1 line-clamp-2 text-[10px] text-destructive">
+                      {page.last_error}
+                    </div>
+                  )}
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={() => editPage(page)}>
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => testMut.mutate(page.page_id)}
+                    disabled={!page.has_token || testMut.isPending}
+                  >
+                    Test
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -341,7 +596,8 @@ function ConversationPane({ ticketId, onBack }: { ticketId: string; onBack?: () 
 
   const t = ticket.data;
   const items = useMemo(() => messages.data ?? [], [messages.data]);
-  const pageName = t?.messenger_page_name || (isFacebookUsername(t?.player_username) ? t?.game_provider : null);
+  const pageName =
+    t?.messenger_page_name || (isFacebookUsername(t?.player_username) ? t?.game_provider : null);
 
   return (
     <>
@@ -480,8 +736,12 @@ function ConversationPane({ ticketId, onBack }: { ticketId: string; onBack?: () 
                 >
                   <div className="max-w-[88%] sm:max-w-[70%] min-w-0">
                     <div className="text-[10px] text-muted-foreground mb-0.5 px-1 break-words">
-                      {isPlayer ? (m.sender_name ?? "Player") : isBot ? "Bot" : (m.sender_name ?? "Staff")} ·{" "}
-                      {new Date(m.created_at).toLocaleString()}
+                      {isPlayer
+                        ? (m.sender_name ?? "Player")
+                        : isBot
+                          ? "Bot"
+                          : (m.sender_name ?? "Staff")}{" "}
+                      · {new Date(m.created_at).toLocaleString()}
                     </div>
                     <div className="hidden">
                       {isPlayer ? "Player" : isBot ? "Bot" : (m.sender_name ?? "Staff")} ·{" "}
