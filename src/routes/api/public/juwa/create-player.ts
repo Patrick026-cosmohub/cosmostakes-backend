@@ -163,7 +163,11 @@ async function waitForRefujRegistration(input: {
     } catch {
       continue;
     }
-    let match = findRefujRegistrationRecord(refujRecords(result.raw), input);
+    const filteredRecords = refujRecords(result.raw);
+    let match = findRefujRegistrationRecord(filteredRecords, input);
+    if (!match && input.registrationId && filteredRecords.length === 1) {
+      match = filteredRecords[0];
+    }
     if (!match) {
       try {
         const fallbackResult = await readRefujRegistrationRequests({ apiBase: input.apiBase });
