@@ -93,6 +93,8 @@ function readVblinkFullAccount(data: unknown, fallback: string): string {
 
 const GENERIC_REFUJ_STATUS_RE =
   /^(added successfully|created successfully|account created|success|completed|pending|request submitted|done|failed)$/i;
+const REFUJ_STALE_PENDING_MS = 3 * 60 * 1000;
+const VEGAS_SWEEPS_STALE_PENDING_MS = 10 * 60 * 1000;
 
 function extractRefujPassword(record: any) {
   const candidates = [record?.password, record?.Password, record?.notes, record?.Notes];
@@ -423,15 +425,10 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             const createdAtMs = existingRow.created_at
               ? new Date(existingRow.created_at).getTime()
               : 0;
+            const stalePendingMs =
+              platform === "lasvegassweeps" ? VEGAS_SWEEPS_STALE_PENDING_MS : REFUJ_STALE_PENDING_MS;
             const stalePending =
-              !createdAtMs || Date.now() - createdAtMs > 3 * 60 * 1000;
-            if (stalePending && platform === "lasvegassweeps") {
-              return jsonOk({
-                pending: true,
-                username: existingRow.juwa_username,
-                message: "Registration is still pending. Try again shortly.",
-              });
-            }
+              !createdAtMs || Date.now() - createdAtMs > stalePendingMs;
             if (stalePending) {
               const registrationId = generateRefujRegistrationId(playerSiteUserId);
               const username = existingRow.juwa_username;
