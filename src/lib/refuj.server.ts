@@ -260,6 +260,15 @@ function accepted(responseStatus: number, body: any) {
   const code = Number(body?.code ?? body?.Code ?? body?.status_code ?? body?.Status_code);
   const status = String(body?.status ?? body?.Status ?? "").toLowerCase();
   const message = String(body?.message ?? body?.Message ?? body?.msg ?? "").toLowerCase();
+  const failed =
+    code >= 400 ||
+    status === "failed" ||
+    status === "fail" ||
+    status === "error" ||
+    status === "false" ||
+    body?.success === false ||
+    /\b(fail|failed|invalid|incorrect|denied|unauthorized|forbidden|wrong)\b/.test(message);
+  if (failed) return false;
   return (
     code === 200 ||
     code === 201 ||

@@ -435,17 +435,6 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
               const email = `${username}${Date.now().toString(36)}@player.cosmostakes.net`;
               const nickname = username.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20) || "Player";
 
-              const { error: retryUpdateError } = await supabaseAdmin
-                .from("platform_players" as never)
-                .update({
-                  juwa_user_id: registrationId,
-                  juwa_password: "",
-                  created_at: new Date().toISOString(),
-                } as never)
-                .eq("site_user_id", playerSiteUserId)
-                .eq("platform", platform);
-              if (retryUpdateError) return jsonError(500, retryUpdateError.message);
-
               try {
                 await callRefujRegister({
                   registrationId,
@@ -461,6 +450,17 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
               } catch (e) {
                 return jsonError(502, (e as Error).message);
               }
+
+              const { error: retryUpdateError } = await supabaseAdmin
+                .from("platform_players" as never)
+                .update({
+                  juwa_user_id: registrationId,
+                  juwa_password: "",
+                  created_at: new Date().toISOString(),
+                } as never)
+                .eq("site_user_id", playerSiteUserId)
+                .eq("platform", platform);
+              if (retryUpdateError) return jsonError(500, retryUpdateError.message);
 
               const retryPolled = await waitForRefujRegistration({
                 registrationId,
