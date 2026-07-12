@@ -124,6 +124,25 @@ function refujRecords(raw: any) {
                 : [];
 }
 
+function findRefujRegistrationRecord(records: any[], input: { registrationId: string; gameCode: string; desiredUsername: string }) {
+  return records.find((record: any) => {
+    const regId =
+      record.registration_id ??
+      record.registrationId ??
+      record.Registration_ID ??
+      record.request_id;
+    if (regId && regId === input.registrationId) return true;
+    const recordGameCode = String(
+      record.gaming_site ?? record.game_code ?? record.Game_Code ?? record.Gaming_Site ?? "",
+    ).toUpperCase();
+    if (recordGameCode && recordGameCode !== input.gameCode.toUpperCase()) return false;
+    const username = readRefujText(
+      record.desire_username ?? record.desired_username ?? record.Desire_Username,
+    );
+    return username === input.desiredUsername;
+  });
+}
+
 async function waitForRefujRegistration(input: {
   registrationId: string;
   gameCode: string;
@@ -142,18 +161,15 @@ async function waitForRefujRegistration(input: {
     } catch {
       continue;
     }
-    const match = refujRecords(result.raw).find((record: any) => {
-      const regId =
-        record.registration_id ??
-        record.registrationId ??
-        record.Registration_ID ??
-        record.request_id;
-      if (regId && regId === input.registrationId) return true;
-      const username = readRefujText(
-        record.desire_username ?? record.desired_username ?? record.Desire_Username,
-      );
-      return username === input.desiredUsername;
-    });
+    let match = findRefujRegistrationRecord(refujRecords(result.raw), input);
+    if (!match) {
+      try {
+        const fallbackResult = await readRefujRegistrationRequests({ apiBase: input.apiBase });
+        match = findRefujRegistrationRecord(refujRecords(fallbackResult.raw), input);
+      } catch {
+        // Keep the original filtered response behavior if REFUJ's full list is unavailable.
+      }
+    }
     if (!match) continue;
 
     const status = String(match.status ?? match.Status ?? "").toLowerCase();
@@ -409,6 +425,13 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
               : 0;
             const stalePending =
               !createdAtMs || Date.now() - createdAtMs > 3 * 60 * 1000;
+            if (stalePending && platform === "lasvegassweeps") {
+              return jsonOk({
+                pending: true,
+                username: existingRow.juwa_username,
+                message: "Registration is still pending. Try again shortly.",
+              });
+            }
             if (stalePending) {
               const registrationId = generateRefujRegistrationId(playerSiteUserId);
               const username = existingRow.juwa_username;
