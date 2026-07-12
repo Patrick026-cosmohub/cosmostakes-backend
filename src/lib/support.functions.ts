@@ -51,7 +51,7 @@ function messengerWebhookUrl() {
 }
 
 async function validateMetaPageToken(token: string, expectedPageId?: string | null) {
-  const graphVersion = process.env.META_GRAPH_API_VERSION?.trim() || "v24.0";
+  const graphVersion = process.env.META_GRAPH_API_VERSION?.trim() || "v25.0";
   const url = new URL(`https://graph.facebook.com/${graphVersion}/me`);
   url.searchParams.set("fields", "id,name");
   url.searchParams.set("access_token", token);
@@ -346,7 +346,7 @@ async function sendMetaPageReplyIfNeeded(supabase: any, ticketId: string, body: 
   }
   if (!token) return;
 
-  const graphVersion = process.env.META_GRAPH_API_VERSION?.trim() || "v24.0";
+  const graphVersion = process.env.META_GRAPH_API_VERSION?.trim() || "v25.0";
   const response = await fetch(
     `https://graph.facebook.com/${graphVersion}/me/messages?access_token=${encodeURIComponent(token)}`,
     {

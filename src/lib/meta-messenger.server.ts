@@ -30,7 +30,9 @@ export function fallbackFacebookUserName(psid: string) {
   return `Facebook User ${psid.slice(-6)}`;
 }
 
-export function parseFacebookUsername(username: string | null | undefined): FacebookIdentity | null {
+export function parseFacebookUsername(
+  username: string | null | undefined,
+): FacebookIdentity | null {
   if (!username?.startsWith("fb:")) return null;
   const parts = username.split(":");
   if (parts.length < 3) return null;
@@ -69,7 +71,7 @@ export async function fetchMetaUserProfile(
   const token = await getPageAccessToken(supabase, pageId);
   if (!token) return null;
 
-  const graphVersion = process.env.META_GRAPH_API_VERSION?.trim() || "v24.0";
+  const graphVersion = process.env.META_GRAPH_API_VERSION?.trim() || "v25.0";
   const url = new URL(`https://graph.facebook.com/${graphVersion}/${encodeURIComponent(psid)}`);
   url.searchParams.set("fields", "first_name,last_name,name,profile_pic");
   url.searchParams.set("access_token", token);
@@ -82,9 +84,7 @@ export async function fetchMetaUserProfile(
     const last = typeof profile?.last_name === "string" ? profile.last_name.trim() : "";
     const fullFromParts = [first, last].filter(Boolean).join(" ");
     const name =
-      fullFromParts ||
-      (typeof profile?.name === "string" ? profile.name.trim() : "") ||
-      null;
+      fullFromParts || (typeof profile?.name === "string" ? profile.name.trim() : "") || null;
     const profilePic =
       typeof profile?.profile_pic === "string" && profile.profile_pic.trim()
         ? profile.profile_pic.trim()
