@@ -9,6 +9,8 @@ export type RefujTransferInput = {
   gameCode?: string | null;
   gameUser?: string | null;
   gamePass?: string | null;
+  apiUsername?: string | null;
+  apiPassword?: string | null;
   customerUsername: string;
   amount: number;
   bonusAmount?: number;
@@ -28,6 +30,8 @@ export type RefujRegisterInput = {
   gameCode?: string | null;
   gameUser?: string | null;
   gamePass?: string | null;
+  apiUsername?: string | null;
+  apiPassword?: string | null;
   desiredUsername: string;
   nickname: string;
   email: string;
@@ -52,6 +56,7 @@ const GAME_CODE_MAP: Record<string, string> = {
   "fire kirin": "FK",
   firekirin: "FK",
   "vegas sweeps": "VS",
+  lasvegassweeps: "VS",
   vegassweeps: "VS",
   "cash ignite": "CI",
   cashignite: "CI",
@@ -100,18 +105,24 @@ const GAME_CODE_MAP: Record<string, string> = {
 };
 
 function env(name: string, fallbackName?: string) {
-  const value = process.env[name]?.trim() || (fallbackName ? process.env[fallbackName]?.trim() : "");
+  const value =
+    process.env[name]?.trim() || (fallbackName ? process.env[fallbackName]?.trim() : "");
   return value || "";
 }
 
 function requireEnv(name: string, fallbackName?: string) {
   const value = env(name, fallbackName);
-  if (!value) throw new Error(`${name}${fallbackName ? ` or ${fallbackName}` : ""} is required for REFUJ.`);
+  if (!value)
+    throw new Error(`${name}${fallbackName ? ` or ${fallbackName}` : ""} is required for REFUJ.`);
   return value;
 }
 
 function normalize(value: string) {
-  return value.trim().toLowerCase().replace(/[^a-z0-9.]+/g, " ").replace(/\s+/g, " ");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, " ")
+    .replace(/\s+/g, " ");
 }
 
 function compact(value: string) {
@@ -133,7 +144,34 @@ function resolveGameCode(gameName: string, configured?: string | null) {
   const explicit = configured?.trim();
   if (explicit && /^[A-Za-z0-9_.-]{1,8}$/.test(explicit)) return explicit.toUpperCase();
 
-  throw new Error(`No REFUJ game acronym is configured for ${gameName}. Set the game provider to the REFUJ code.`);
+  throw new Error(
+    `No REFUJ game acronym is configured for ${gameName}. Set the game provider to the REFUJ code.`,
+  );
+}
+
+function refujApiCredentialFields(
+  gameCode: string,
+  gameUser: string,
+  gamePass: string,
+  passphrase: string,
+  apiUsername?: string | null,
+  apiPassword?: string | null,
+) {
+  const explicitApiUsername = apiUsername?.trim();
+  const explicitApiPassword = apiPassword?.trim();
+  const usesSeparateGameApi = gameCode === "VS";
+  const derivedApiUsername =
+    usesSeparateGameApi && gameUser.toLowerCase().startsWith("account-")
+      ? gameUser.slice("account-".length)
+      : gameUser;
+  const resolvedApiUsername = explicitApiUsername || (usesSeparateGameApi ? derivedApiUsername : "");
+  const resolvedApiPassword = explicitApiPassword || (usesSeparateGameApi ? gamePass : "");
+
+  if (!resolvedApiUsername || !resolvedApiPassword) return {};
+  return {
+    api_username: encryptForRefuj(resolvedApiUsername, passphrase),
+    api_password: encryptForRefuj(resolvedApiPassword, passphrase),
+  };
 }
 
 function apiBase(configured?: string | null) {
@@ -152,7 +190,10 @@ function masterConfig() {
   return { secretKey, passphrase, gatewayKey };
 }
 
-export function encryptForRefuj(value: string, passphrase = requireEnv("REFUJ_ENCRYPTION_PASSPHRASE")) {
+export function encryptForRefuj(
+  value: string,
+  passphrase = requireEnv("REFUJ_ENCRYPTION_PASSPHRASE"),
+) {
   if (!/^[a-f0-9]{64}$/i.test(passphrase)) {
     throw new Error("REFUJ_ENCRYPTION_PASSPHRASE must be a 64-character hex string.");
   }
@@ -173,7 +214,10 @@ export function encryptForRefuj(value: string, passphrase = requireEnv("REFUJ_EN
   ).toString("base64");
 }
 
-export function decryptFromRefuj(value: string, passphrase = requireEnv("REFUJ_ENCRYPTION_PASSPHRASE")) {
+export function decryptFromRefuj(
+  value: string,
+  passphrase = requireEnv("REFUJ_ENCRYPTION_PASSPHRASE"),
+) {
   try {
     if (!/^[a-f0-9]{64}$/i.test(passphrase)) return "";
     const key = Buffer.from(passphrase, "hex");
@@ -183,7 +227,9 @@ export function decryptFromRefuj(value: string, passphrase = requireEnv("REFUJ_E
     const encrypted = Buffer.from(outer.data, "base64");
     const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
     decipher.setAuthTag(tag);
-    const base64Plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+    const base64Plaintext = Buffer.concat([decipher.update(encrypted), decipher.final()]).toString(
+      "utf8",
+    );
     const jsonText = Buffer.from(base64Plaintext, "base64").toString("utf8");
     const parsed = JSON.parse(jsonText);
     return typeof parsed === "string" ? parsed : String(parsed ?? "");
@@ -216,27 +262,37 @@ function accepted(responseStatus: number, body: any) {
   const message = String(body?.message ?? body?.Message ?? body?.msg ?? "").toLowerCase();
   return (
     code === 200 ||
-      code === 201 ||
-      status === "success" ||
-      status === "true" ||
-      status === "200" ||
-      status === "201" ||
-      body?.success === true ||
-      message.includes("success") ||
-      message.includes("submitted") ||
-      message.includes("sent") ||
-      (responseStatus >= 200 && responseStatus < 300 && !message.includes("error"))
+    code === 201 ||
+    status === "success" ||
+    status === "true" ||
+    status === "200" ||
+    status === "201" ||
+    body?.success === true ||
+    message.includes("success") ||
+    message.includes("submitted") ||
+    message.includes("sent") ||
+    (responseStatus >= 200 && responseStatus < 300 && !message.includes("error"))
   );
 }
 
 function errorMessage(responseStatus: number, body: any) {
   if (body && typeof body === "object") {
-    return String(body.message ?? body.Message ?? body.error ?? body.Error ?? `REFUJ request failed with HTTP ${responseStatus}`);
+    return String(
+      body.message ??
+        body.Message ??
+        body.error ??
+        body.Error ??
+        `REFUJ request failed with HTTP ${responseStatus}`,
+    );
   }
   return `REFUJ request failed with HTTP ${responseStatus}: ${String(body).slice(0, 180)}`;
 }
 
-async function postRefuj(path: string, payload: Record<string, unknown>, configuredBase?: string | null) {
+async function postRefuj(
+  path: string,
+  payload: Record<string, unknown>,
+  configuredBase?: string | null,
+) {
   const { gatewayKey } = masterConfig();
   const response = await fetch(`${apiBase(configuredBase)}${path}`, {
     method: "POST",
@@ -265,7 +321,9 @@ export async function readRefujGameList(configuredBase?: string | null) {
 
 export async function callRefujTransfer(input: RefujTransferInput): Promise<RefujTransferResult> {
   if (input.kind !== "deposit") {
-    throw new Error("REFUJ is only used for game loads. Redeems are handled manually and credited on admin approval.");
+    throw new Error(
+      "REFUJ is only used for game loads. Redeems are handled manually and credited on admin approval.",
+    );
   }
 
   const { secretKey, passphrase } = masterConfig();
@@ -285,6 +343,14 @@ export async function callRefujTransfer(input: RefujTransferInput): Promise<Refu
     amount,
     game_user: encryptForRefuj(gameUser, passphrase),
     game_pass: encryptForRefuj(gamePass, passphrase),
+    ...refujApiCredentialFields(
+      gameCode,
+      gameUser,
+      gamePass,
+      passphrase,
+      input.apiUsername,
+      input.apiPassword,
+    ),
     customer_username: input.customerUsername,
   };
 
@@ -305,8 +371,8 @@ export async function callRefujRegister(input: RefujRegisterInput): Promise<Refu
   const payload = {
     secret_key: secretKey,
     registration_id: input.registrationId,
-    email: input.email,
     gaming_site: gameCode,
+    email: input.email,
     nickname: input.nickname,
     desire_username: input.desiredUsername,
     game_user: gameUser,

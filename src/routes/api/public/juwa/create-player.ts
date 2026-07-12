@@ -161,11 +161,12 @@ async function waitForRefujRegistration(input: {
     if (
       status.includes("completed") ||
       status.includes("success") ||
+      status.includes("done") ||
       /added successfully|created successfully|success/i.test(notes)
     ) {
       return { status: "completed" as const, password: extractRefujPassword(match), raw: match };
     }
-    if (status.includes("failed") || status.includes("error")) {
+    if (status.includes("failed") || status.includes("error") || status.includes("reject")) {
       return {
         status: "failed" as const,
         reason: readRefujText(match.notes ?? match.Notes) || "REFUJ registration failed",
@@ -323,16 +324,47 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
         if (isRefujPlatform(platform)) {
           const { data: existing } = await supabaseAdmin
             .from("platform_players" as never)
-            .select("juwa_user_id, juwa_username, juwa_password")
+            .select("juwa_user_id, juwa_username, juwa_password, created_at")
             .eq("site_user_id", playerSiteUserId)
             .eq("platform", platform)
             .maybeSingle();
 
           const refuj = await getRefujIntegration(platform);
+          const callerPwd = parsed.login_pwd ?? parsed.password;
+          const requestedPassword =
+            callerPwd && callerPwd.length >= 6 && callerPwd.length <= 20
+              ? callerPwd
+              : generateJuwaPassword();
+          const completeRefujAccount = async (input: {
+            username: string;
+            registrationId: string;
+            password?: string;
+          }) => {
+            const password = input.password || requestedPassword;
+            await supabaseAdmin
+              .from("platform_players" as never)
+              .update({ juwa_password: password } as never)
+              .eq("site_user_id", playerSiteUserId)
+              .eq("platform", platform)
+              .eq("juwa_user_id", input.registrationId);
+            await savePlatformAccount({
+              supabaseAdmin,
+              userId: playerSiteUserId,
+              platform,
+              username: input.username,
+              password,
+            });
+            return jsonOk({
+              username: input.username,
+              password,
+              juwa_user_id: input.registrationId,
+            });
+          };
           const existingRow = existing as {
             juwa_user_id: string;
             juwa_username: string;
             juwa_password: string;
+            created_at?: string;
           } | null;
           if (existingRow?.juwa_username && existingRow?.juwa_password) {
             await savePlatformAccount({
@@ -356,23 +388,11 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
               desiredUsername: existingRow.juwa_username,
               apiBase: refuj.apiBase,
             });
-            if (polled.status === "completed" && polled.password) {
-              await supabaseAdmin
-                .from("platform_players" as never)
-                .update({ juwa_password: polled.password } as never)
-                .eq("site_user_id", playerSiteUserId)
-                .eq("platform", platform);
-              await savePlatformAccount({
-                supabaseAdmin,
-                userId: playerSiteUserId,
-                platform,
+            if (polled.status === "completed") {
+              return completeRefujAccount({
                 username: existingRow.juwa_username,
+                registrationId: existingRow.juwa_user_id,
                 password: polled.password,
-              });
-              return jsonOk({
-                username: existingRow.juwa_username,
-                password: polled.password,
-                juwa_user_id: existingRow.juwa_user_id,
               });
             }
             if (polled.status === "failed") {
@@ -383,6 +403,74 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
                 .eq("platform", platform);
               return jsonError(502, polled.reason ?? "REFUJ registration failed");
             }
+
+            const createdAtMs = existingRow.created_at
+              ? new Date(existingRow.created_at).getTime()
+              : 0;
+            const stalePending =
+              !createdAtMs || Date.now() - createdAtMs > 3 * 60 * 1000;
+            if (stalePending) {
+              const registrationId = generateRefujRegistrationId(playerSiteUserId);
+              const username = existingRow.juwa_username;
+              const email = `${username}${Date.now().toString(36)}@player.cosmostakes.net`;
+              const nickname = username.replace(/[^a-zA-Z0-9]/g, "").slice(0, 20) || "Player";
+
+              const { error: retryUpdateError } = await supabaseAdmin
+                .from("platform_players" as never)
+                .update({
+                  juwa_user_id: registrationId,
+                  juwa_password: "",
+                  created_at: new Date().toISOString(),
+                } as never)
+                .eq("site_user_id", playerSiteUserId)
+                .eq("platform", platform);
+              if (retryUpdateError) return jsonError(500, retryUpdateError.message);
+
+              try {
+                await callRefujRegister({
+                  registrationId,
+                  gameName: refuj.gameName,
+                  gameCode: refuj.gameCode,
+                  gameUser: refuj.gameUser,
+                  gamePass: refuj.gamePass,
+                  desiredUsername: username,
+                  nickname,
+                  email,
+                  apiBase: refuj.apiBase,
+                });
+              } catch (e) {
+                return jsonError(502, (e as Error).message);
+              }
+
+              const retryPolled = await waitForRefujRegistration({
+                registrationId,
+                gameCode: refuj.gameCode,
+                desiredUsername: username,
+                apiBase: refuj.apiBase,
+              });
+              if (retryPolled.status === "completed") {
+                return completeRefujAccount({
+                  username,
+                  registrationId,
+                  password: retryPolled.password,
+                });
+              }
+              if (retryPolled.status === "failed") {
+                await supabaseAdmin
+                  .from("platform_players" as never)
+                  .delete()
+                  .eq("site_user_id", playerSiteUserId)
+                  .eq("platform", platform);
+                return jsonError(502, retryPolled.reason ?? "REFUJ registration failed");
+              }
+
+              return jsonOk({
+                pending: true,
+                username,
+                message: "Registration resubmitted. Try again shortly.",
+              });
+            }
+
             return jsonOk({
               pending: true,
               username: existingRow.juwa_username,
@@ -439,24 +527,12 @@ export const Route = createFileRoute("/api/public/juwa/create-player")({
             apiBase: refuj.apiBase,
           });
 
-          if (polled.status === "completed" && polled.password) {
-            await supabaseAdmin
-              .from("platform_players" as never)
-              .update({ juwa_password: polled.password } as never)
-              .eq("site_user_id", playerSiteUserId)
-              .eq("platform", platform)
-              .eq("juwa_user_id", registrationId);
-            await savePlatformAccount({
-              supabaseAdmin,
-              userId: playerSiteUserId,
-              platform,
+          if (polled.status === "completed") {
+            return completeRefujAccount({
               username,
+              registrationId,
               password: polled.password,
             });
-          }
-
-          if (polled.status === "completed" && polled.password) {
-            return jsonOk({ username, password: polled.password, juwa_user_id: registrationId });
           }
           if (polled.status === "failed") {
             await supabaseAdmin
