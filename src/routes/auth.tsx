@@ -159,13 +159,13 @@ function AuthPage() {
             <TabsContent value="staff">
               <form onSubmit={handleStaffSignIn} className="space-y-4 pt-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="username">Email</Label>
                   <Input
                     id="username"
                     name="username"
                     required
-                    autoComplete="username"
-                    placeholder="staff username"
+                    autoComplete="email"
+                    placeholder="staff@cosmostakes.com"
                   />
                 </div>
                 <div className="space-y-1.5">
