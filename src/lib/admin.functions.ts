@@ -554,7 +554,54 @@ export const listRequests = createServerFn({ method: "GET" })
     if (data.status !== "all") q = q.eq("status", data.status);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+
+    if (data.kind !== "deposit") return rows ?? [];
+
+    let publicQ: any = supabase
+      .from("public_payment_requests" as never)
+      .select(
+        "id,provider,provider_order_id,provider_payment_id,player_name,game_username,amount_usd,pay_way,provider_status,admin_status,internal_note,processed_at,created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (data.status !== "all") {
+      publicQ = publicQ.eq("admin_status", data.status === "approved" ? "verified" : data.status);
+    }
+    const { data: publicRows, error: publicError } = await publicQ;
+    if (publicError) throw new Error(publicError.message);
+
+    const publicDeposits = ((publicRows ?? []) as any[]).map((r) => ({
+      id: r.id,
+      amount: r.amount_usd,
+      status: r.admin_status === "verified" ? "approved" : r.admin_status,
+      reference: r.provider_order_id,
+      notes: [
+        "/pay public checkout",
+        `provider=${r.provider}`,
+        `provider_status=${r.provider_status}`,
+        r.provider_payment_id ? `provider_payment_id=${r.provider_payment_id}` : null,
+        r.internal_note,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      requested_at: r.created_at,
+      processed_at: r.processed_at,
+      processed_by: null,
+      player: {
+        id: r.id,
+        username: r.game_username,
+        full_name: r.player_name,
+        game_id: null,
+      },
+      method: {
+        name: r.provider === "zappay" ? "ZapPay / Public Link" : "CashApp / Pay Public Link",
+        kind: r.provider === "zappay" ? "card" : "p2p",
+      },
+    }));
+
+    return [...((rows ?? []) as any[]), ...publicDeposits].sort(
+      (a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime(),
+    );
   });
 
 async function maybeRunRefujForDeposit(supabase: any, req: any) {
@@ -621,6 +668,48 @@ export const decideRequest = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .maybeSingle();
     if (fetchErr) throw new Error(fetchErr.message);
+    if (!req && data.kind === "deposit") {
+      const { data: publicReq, error: publicFetchErr } = await supabase
+        .from("public_payment_requests" as never)
+        .select("*")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (publicFetchErr) throw new Error(publicFetchErr.message);
+      if (publicReq) {
+        const row = publicReq as any;
+        if (row.admin_status !== "pending") throw new Error(`Request is already ${row.admin_status}`);
+        if (data.decision !== "approved" && data.decision !== "rejected") {
+          throw new Error("Public payment requests can only be approved or rejected.");
+        }
+        const nextStatus = data.decision === "approved" ? "verified" : "rejected";
+        const note = [row.internal_note, data.note].filter(Boolean).join("\n");
+        const { error: publicUpdateErr } = await supabase
+          .from("public_payment_requests" as never)
+          .update({
+            admin_status: nextStatus,
+            processed_at: new Date().toISOString(),
+            processed_by: userId,
+            internal_note: note || null,
+          } as never)
+          .eq("id", data.id);
+        if (publicUpdateErr) throw new Error(publicUpdateErr.message);
+        await supabase.from("audit_logs").insert({
+          staff_id: userId,
+          action: `public_payment.${data.decision}`,
+          entity_type: "public_payment_request",
+          entity_id: data.id,
+          metadata: {
+            amount: row.amount_usd,
+            provider: row.provider,
+            provider_order_id: row.provider_order_id,
+            player_name: row.player_name,
+            game_username: row.game_username,
+            note: data.note ?? null,
+          },
+        });
+        return { ok: true };
+      }
+    }
     if (!req) throw new Error("Request not found");
     if (req.status !== "pending") throw new Error(`Request is already ${req.status}`);
 

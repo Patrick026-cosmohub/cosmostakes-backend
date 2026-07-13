@@ -159,11 +159,18 @@ function refujApiCredentialFields(
 ) {
   const explicitApiUsername = apiUsername?.trim();
   const explicitApiPassword = apiPassword?.trim();
+  const usesSeparateGameApi = gameCode === "VS";
+  const derivedApiUsername =
+    usesSeparateGameApi && gameUser.toLowerCase().startsWith("account-")
+      ? gameUser.slice("account-".length)
+      : gameUser;
+  const resolvedApiUsername = explicitApiUsername || (usesSeparateGameApi ? derivedApiUsername : "");
+  const resolvedApiPassword = explicitApiPassword || (usesSeparateGameApi ? gamePass : "");
 
-  if (!explicitApiUsername || !explicitApiPassword) return {};
+  if (!resolvedApiUsername || !resolvedApiPassword) return {};
   return {
-    api_username: encryptForRefuj(explicitApiUsername, passphrase),
-    api_password: encryptForRefuj(explicitApiPassword, passphrase),
+    api_username: encryptForRefuj(resolvedApiUsername, passphrase),
+    api_password: encryptForRefuj(resolvedApiPassword, passphrase),
   };
 }
 
