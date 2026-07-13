@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getMe } from "@/lib/admin.functions";
 import { signOutStaff } from "@/lib/staff-auth.functions";
@@ -83,6 +83,11 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; permission
 ];
 
 const ROLE_PRIORITY: Role[] = ["super_admin", "admin", "finance_agent", "support_agent"];
+const PAYOUT_HOST = "payout.cosmostakes.net";
+
+function isPayoutHost() {
+  return typeof window !== "undefined" && window.location.hostname.toLowerCase() === PAYOUT_HOST;
+}
 
 function AuthedLayout() {
   const router = useRouter();
@@ -94,8 +99,13 @@ function AuthedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const roles = (me.data?.roles ?? []) as Role[];
   const primaryRole = ROLE_PRIORITY.find((role) => roles.includes(role)) ?? "support_agent";
-  const payoutHost =
-    typeof window !== "undefined" && window.location.hostname === "payout.cosmostakes.net";
+  const payoutHost = isPayoutHost();
+
+  useEffect(() => {
+    if (payoutHost && !pathname.startsWith("/payouts")) {
+      router.navigate({ to: "/payouts", replace: true });
+    }
+  }, [pathname, payoutHost, router]);
 
   async function signOut() {
     await signOutFn();
@@ -145,6 +155,14 @@ function AuthedLayout() {
   }
 
   const visibleNav = NAV.filter((n) => hasPermission(roles, n.permission));
+
+  if (payoutHost && !pathname.startsWith("/payouts")) {
+    return (
+      <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">
+        Opening payout portal...
+      </div>
+    );
+  }
 
   if (payoutHost && pathname.startsWith("/payouts")) {
     return (

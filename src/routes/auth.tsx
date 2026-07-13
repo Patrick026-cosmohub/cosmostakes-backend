@@ -14,10 +14,14 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+const PAYOUT_HOST = "payout.cosmostakes.net";
+
+function isPayoutHost() {
+  return typeof window !== "undefined" && window.location.hostname.toLowerCase() === PAYOUT_HOST;
+}
+
 function getPostLoginRoute() {
-  return typeof window !== "undefined" && window.location.hostname === "payout.cosmostakes.net"
-    ? "/payouts"
-    : "/dashboard";
+  return isPayoutHost() ? "/payouts" : "/dashboard";
 }
 
 function AuthPage() {
@@ -30,6 +34,7 @@ function AuthPage() {
     challengeId: string;
   } | null>(null);
   const [mfaCode, setMfaCode] = useState("");
+  const payoutHost = isPayoutHost();
 
   async function supabaseSessionReady() {
     const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -148,7 +153,7 @@ function AuthPage() {
           <div>
             <h1 className="font-bold tracking-tight">COSMO STAKES</h1>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Admin Console
+              {payoutHost ? "Payout Portal" : "Admin Console"}
             </p>
           </div>
         </div>
@@ -233,7 +238,7 @@ function AuthPage() {
           </Tabs>
         </div>
         <p className="text-center text-[11px] text-muted-foreground mt-4">
-          Internal use only · cosmostakes.com
+          Internal use only · {payoutHost ? "payout.cosmostakes.net" : "cosmostakes.com"}
         </p>
       </div>
     </div>

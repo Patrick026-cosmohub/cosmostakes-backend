@@ -299,7 +299,7 @@ function PayoutsPage() {
       <div className="mx-auto grid max-w-7xl gap-5 px-4 py-5 lg:grid-cols-[230px_minmax(0,1fr)] lg:px-6">
         <aside className="space-y-2">
           <NavButton active={view === "dashboard"} onClick={() => setView("dashboard")} icon={WalletCards}>
-            Dashboard
+            Payout Dashboard
           </NavButton>
           <NavButton active={view === "new"} onClick={() => setView("new")} icon={FileCheck2}>
             New Payout
