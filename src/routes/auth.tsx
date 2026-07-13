@@ -63,17 +63,28 @@ function AuthPage() {
   async function handleStaffSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const login = String(fd.get("username") ?? "").trim();
+    const password = String(fd.get("password") ?? "");
     setLoading(true);
     try {
       await signIn({
         data: {
-          username: String(fd.get("username") ?? ""),
-          password: String(fd.get("password") ?? ""),
+          username: login,
+          password,
         },
       });
       toast.success("Signed in");
       navigate({ to: getPostLoginRoute() });
     } catch (error: any) {
+      if (login.includes("@")) {
+        try {
+          await signInSupabaseAdmin(login, password);
+          return;
+        } catch (supabaseError: any) {
+          toast.error(supabaseError?.message ?? error?.message ?? "Sign in failed");
+          return;
+        }
+      }
       toast.error(error?.message ?? "Sign in failed");
     } finally {
       setLoading(false);
@@ -105,24 +116,30 @@ function AuthPage() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: String(fd.get("email") ?? ""),
-      password: String(fd.get("password") ?? ""),
-    });
-    setLoading(false);
-    if (error) toast.error(error.message);
-    else {
-      try {
-        if (await beginSuperAdminMfaIfNeeded()) {
-          toast.info("Enter your authenticator code");
-          return;
-        }
-        toast.success("Signed in");
-        navigate({ to: getPostLoginRoute() });
-      } catch (mfaError: any) {
-        toast.error(mfaError?.message ?? "2FA challenge failed");
-      }
+    try {
+      await signInSupabaseAdmin(
+        String(fd.get("email") ?? ""),
+        String(fd.get("password") ?? ""),
+      );
+    } catch (error: any) {
+      toast.error(error?.message ?? "Sign in failed");
+    } finally {
+      setLoading(false);
     }
+  }
+
+  async function signInSupabaseAdmin(email: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    if (await beginSuperAdminMfaIfNeeded()) {
+      toast.info("Enter your authenticator code");
+      return;
+    }
+    toast.success("Signed in");
+    navigate({ to: getPostLoginRoute() });
   }
 
   async function handleVerifyMfa(e: React.FormEvent<HTMLFormElement>) {
