@@ -14,6 +14,12 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+function getPostLoginRoute() {
+  return typeof window !== "undefined" && window.location.hostname === "payout.cosmostakes.net"
+    ? "/payouts"
+    : "/dashboard";
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const signIn = useServerFn(signInStaff);
@@ -24,10 +30,6 @@ function AuthPage() {
     challengeId: string;
   } | null>(null);
   const [mfaCode, setMfaCode] = useState("");
-  const postLoginRoute =
-    typeof window !== "undefined" && window.location.hostname === "payout.cosmostakes.net"
-      ? "/payouts"
-      : "/dashboard";
 
   async function supabaseSessionReady() {
     const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -40,12 +42,12 @@ function AuthPage() {
       .then(async ([supabaseSession, staffSession]) => {
         const ready = supabaseSession.data.session ? await supabaseSessionReady() : false;
         if (mounted && (ready || staffSession)) {
-          navigate({ to: postLoginRoute });
+          navigate({ to: getPostLoginRoute() });
         }
       })
       .catch(() => {});
     const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session && (await supabaseSessionReady())) navigate({ to: postLoginRoute });
+      if (session && (await supabaseSessionReady())) navigate({ to: getPostLoginRoute() });
     });
     return () => {
       mounted = false;
@@ -65,7 +67,7 @@ function AuthPage() {
         },
       });
       toast.success("Signed in");
-      navigate({ to: postLoginRoute });
+      navigate({ to: getPostLoginRoute() });
     } catch (error: any) {
       toast.error(error?.message ?? "Sign in failed");
     } finally {
@@ -111,7 +113,7 @@ function AuthPage() {
           return;
         }
         toast.success("Signed in");
-        navigate({ to: postLoginRoute });
+        navigate({ to: getPostLoginRoute() });
       } catch (mfaError: any) {
         toast.error(mfaError?.message ?? "2FA challenge failed");
       }
@@ -133,7 +135,7 @@ function AuthPage() {
       return;
     }
     toast.success("Signed in");
-    navigate({ to: postLoginRoute });
+    navigate({ to: getPostLoginRoute() });
   }
 
   return (
