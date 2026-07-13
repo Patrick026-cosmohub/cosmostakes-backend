@@ -3,16 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMe, listStaff } from "@/lib/admin.functions";
 import { ROLE_LABEL, type Role } from "@/lib/format";
-import {
-  ROLE_PERMISSIONS,
-  ROLE_DESCRIPTION,
-  PERMISSION_GROUPS,
-} from "@/lib/permissions";
+import { ROLE_PERMISSIONS, ROLE_DESCRIPTION, PERMISSION_GROUPS } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Shield, Check, Minus, Crown, UserCog, Wallet, Eye, ArrowRight } from "lucide-react";
 
@@ -42,7 +43,9 @@ function RolesPage() {
     return (
       <div className="p-6">
         <Card className="bg-surface border-border max-w-md">
-          <CardHeader><CardTitle className="text-base">Forbidden</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Forbidden</CardTitle>
+          </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             Only super admins can view Roles & Permissions.
           </CardContent>
@@ -53,7 +56,10 @@ function RolesPage() {
 
   // Count assigned staff per role
   const counts: Record<Role, number> = {
-    super_admin: 0, admin: 0, finance_agent: 0, support_agent: 0,
+    super_admin: 0,
+    admin: 0,
+    finance_agent: 0,
+    support_agent: 0,
   };
   for (const s of (staff.data ?? []) as { roles: string[] }[]) {
     for (const r of s.roles) if (r in counts) counts[r as Role]++;
@@ -68,7 +74,8 @@ function RolesPage() {
             Roles & Permissions
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Role-based access control. Permissions are enforced in the UI and at the database level (RLS).
+            Role-based access control. Permissions are enforced in the UI and at the database level
+            (RLS).
           </p>
         </div>
         <Link to="/staff">
@@ -90,11 +97,15 @@ function RolesPage() {
                     <Icon className="size-4 text-primary" />
                     {ROLE_LABEL[r]}
                   </CardTitle>
-                  <Badge variant="secondary" className="text-[10px]">{counts[r]} staff</Badge>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {counts[r]} staff
+                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2">
-                <CardDescription className="text-xs leading-relaxed">{ROLE_DESCRIPTION[r]}</CardDescription>
+                <CardDescription className="text-xs leading-relaxed">
+                  {ROLE_DESCRIPTION[r]}
+                </CardDescription>
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground pt-2">
                   {ROLE_PERMISSIONS[r].length} permissions granted
                 </div>
@@ -118,7 +129,9 @@ function RolesPage() {
               <TableRow>
                 <TableHead className="w-[280px]">Capability</TableHead>
                 {ROLE_ORDER.map((r) => (
-                  <TableHead key={r} className="text-center">{ROLE_LABEL[r]}</TableHead>
+                  <TableHead key={r} className="text-center">
+                    {ROLE_LABEL[r]}
+                  </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -126,7 +139,10 @@ function RolesPage() {
               {PERMISSION_GROUPS.map((group) => (
                 <>
                   <TableRow key={group.label} className="bg-surface-hover/40">
-                    <TableCell colSpan={1 + ROLE_ORDER.length} className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <TableCell
+                      colSpan={1 + ROLE_ORDER.length}
+                      className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                    >
                       {group.label}
                     </TableCell>
                   </TableRow>
@@ -152,9 +168,15 @@ function RolesPage() {
             </TableBody>
           </Table>
           <p className="text-[11px] text-muted-foreground mt-4">
-            To change which staff hold which roles, open <Link to="/staff" className="text-primary hover:underline">Staff</Link>.
-            Role definitions are managed in code (<code className="text-[10px] bg-surface-hover px-1 py-0.5 rounded">src/lib/permissions.ts</code>)
-            so they stay in sync with database policies.
+            To change which staff hold which roles, open{" "}
+            <Link to="/staff" className="text-primary hover:underline">
+              Staff
+            </Link>
+            . Role definitions are managed in code (
+            <code className="text-[10px] bg-surface-hover px-1 py-0.5 rounded">
+              src/lib/permissions.ts
+            </code>
+            ) so they stay in sync with database policies.
           </p>
         </CardContent>
       </Card>

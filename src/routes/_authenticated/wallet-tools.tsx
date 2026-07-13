@@ -10,7 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -112,7 +118,9 @@ function WalletToolsPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Player Wallets</CardTitle>
-            <CardDescription>Click Select next to the player profile you want to adjust.</CardDescription>
+            <CardDescription>
+              Click Select next to the player profile you want to adjust.
+            </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -128,13 +136,19 @@ function WalletToolsPage() {
               <TableBody>
                 {walletsQ.isLoading && rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-sm text-muted-foreground py-8"
+                    >
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-sm text-muted-foreground py-8"
+                    >
                       No player wallets found.
                     </TableCell>
                   </TableRow>
@@ -148,9 +162,15 @@ function WalletToolsPage() {
                         onClick={() => setSelected(profile)}
                       >
                         <TableCell className="font-medium">{displayName(profile)}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{profile.email || profile.phone || "-"}</TableCell>
-                        <TableCell className="text-right tabular-nums">{fmtUSD(Number(profile.sweeps_coins ?? 0))}</TableCell>
-                        <TableCell className="text-right tabular-nums">{Number(profile.gold_coins ?? 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {profile.email || profile.phone || "-"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {fmtUSD(Number(profile.sweeps_coins ?? 0))}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {Number(profile.gold_coins ?? 0).toLocaleString()}
+                        </TableCell>
                         <TableCell className="text-right">
                           <Button
                             size="sm"
@@ -186,12 +206,20 @@ function WalletToolsPage() {
             {selected && (
               <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-surface/60 p-3 text-sm">
                 <div>
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Sweeps</div>
-                  <div className="font-semibold tabular-nums">{fmtUSD(Number(selected.sweeps_coins ?? 0))}</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    Sweeps
+                  </div>
+                  <div className="font-semibold tabular-nums">
+                    {fmtUSD(Number(selected.sweeps_coins ?? 0))}
+                  </div>
                 </div>
                 <div>
-                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Gold</div>
-                  <div className="font-semibold tabular-nums">{Number(selected.gold_coins ?? 0).toLocaleString()}</div>
+                  <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    Gold
+                  </div>
+                  <div className="font-semibold tabular-nums">
+                    {Number(selected.gold_coins ?? 0).toLocaleString()}
+                  </div>
                 </div>
               </div>
             )}
@@ -200,7 +228,9 @@ function WalletToolsPage() {
               <div className="space-y-1.5">
                 <Label>Currency</Label>
                 <Select value={currency} onValueChange={(v) => setCurrency(v as "sweeps" | "gold")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="sweeps">Sweeps</SelectItem>
                     <SelectItem value="gold">Gold</SelectItem>
@@ -210,7 +240,9 @@ function WalletToolsPage() {
               <div className="space-y-1.5">
                 <Label>Action</Label>
                 <Select value={kind} onValueChange={(v) => setKind(v as "credit" | "debit")}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="credit">Credit</SelectItem>
                     <SelectItem value="debit">Debit</SelectItem>
@@ -237,10 +269,17 @@ function WalletToolsPage() {
 
             <Button
               className="w-full"
-              disabled={!selected || adjustM.isPending || !Number(amount) || reason.trim().length < 3}
+              disabled={
+                !selected || adjustM.isPending || !Number(amount) || reason.trim().length < 3
+              }
               onClick={() => adjustM.mutate()}
             >
-              {selected && (kind === "credit" ? <Plus className="mr-2 size-4" /> : <Minus className="mr-2 size-4" />)}
+              {selected &&
+                (kind === "credit" ? (
+                  <Plus className="mr-2 size-4" />
+                ) : (
+                  <Minus className="mr-2 size-4" />
+                ))}
               {!selected
                 ? "Select a player first"
                 : `${kind === "credit" ? "Credit" : "Debit"} ${currency === "sweeps" ? "Sweeps" : "Gold"}`}

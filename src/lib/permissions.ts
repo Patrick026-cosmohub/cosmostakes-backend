@@ -14,6 +14,10 @@ export type Permission =
   | "deposits.manage"
   | "cashouts.view"
   | "cashouts.manage"
+  | "payments.view"
+  | "payments.manage"
+  | "payouts.view"
+  | "payouts.manage"
   | "payment_methods.view"
   | "payment_methods.manage"
   | "wallet_tools.use"
@@ -52,6 +56,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "deposits.manage",
     "cashouts.view",
     "cashouts.manage",
+    "payments.view",
+    "payments.manage",
+    "payouts.view",
+    "payouts.manage",
     "payment_methods.view",
     "payment_methods.manage",
     "wallet_tools.use",
@@ -81,6 +89,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "deposits.manage",
     "cashouts.view",
     "cashouts.manage",
+    "payments.view",
+    "payments.manage",
+    "payouts.view",
+    "payouts.manage",
     "payment_methods.view",
     "payment_methods.manage",
     "audit.view",
@@ -96,7 +108,11 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "audit.view",
     "wallet_tools.use",
     "deposits.view",
+    "payments.view",
+    "payments.manage",
     "cashouts.view",
+    "payouts.view",
+    "payouts.manage",
     "transactions.view",
     "backups.manage",
   ],
@@ -104,7 +120,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "dashboard.view",
     "players.view",
     "deposits.view",
+    "payments.view",
     "cashouts.view",
+    "payouts.view",
     "transactions.view",
     "support.access",
   ],
@@ -150,6 +168,10 @@ export const PERMISSION_GROUPS: { label: string; items: { key: Permission; label
       { key: "deposits.manage", label: "Approve / reject deposits" },
       { key: "cashouts.view", label: "View cashouts" },
       { key: "cashouts.manage", label: "Approve / reject cashouts" },
+      { key: "payments.view", label: "View public payment queue" },
+      { key: "payments.manage", label: "Verify / reject public payments" },
+      { key: "payouts.view", label: "View payout queue" },
+      { key: "payouts.manage", label: "Create / mark payouts" },
       { key: "payment_methods.view", label: "View payment methods" },
       { key: "payment_methods.manage", label: "Manage payment methods" },
       { key: "wallet_tools.use", label: "Use wallet tools (adjust balances)" },

@@ -53,7 +53,7 @@ function CashoutsPage() {
     queryKey: ["cashouts", status],
     queryFn: () => fetchRequests({ data: { kind: "cashout", status } }),
   });
-  const rows = (q.data ?? []) as unknown as CashoutRow[];
+  const rows = useMemo(() => (q.data ?? []) as unknown as CashoutRow[], [q.data]);
 
   const decideMutation = useMutation({
     mutationFn: (vars: { id: string; decision: "approved" | "rejected" }) =>
@@ -84,7 +84,15 @@ function CashoutsPage() {
       const gameName = game?.name ?? "Unassigned (no game)";
       const provider = game?.provider ?? null;
       if (!map.has(key)) {
-        map.set(key, { key, gameName, provider, rows: [], total: 0, pendingTotal: 0, paidTotal: 0 });
+        map.set(key, {
+          key,
+          gameName,
+          provider,
+          rows: [],
+          total: 0,
+          pendingTotal: 0,
+          paidTotal: 0,
+        });
       }
       const g = map.get(key)!;
       const amt = Number(r.amount);
@@ -125,7 +133,9 @@ function CashoutsPage() {
               onClick={() => setStatus(s)}
               className={cn(
                 "px-2.5 py-1 text-xs rounded capitalize",
-                status === s ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                status === s
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {s}
@@ -137,8 +147,18 @@ function CashoutsPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Summary label="Requests" value={String(totals.count)} sub={`${status} filter`} />
         <Summary label="Total requested" value={fmtUSD(totals.total)} sub="all selected" />
-        <Summary label="Pending payout" value={fmtUSD(totals.pending)} sub="awaiting approval" tone="warning" />
-        <Summary label="Paid out" value={fmtUSD(totals.paid)} sub="settled to players" tone="success" />
+        <Summary
+          label="Pending payout"
+          value={fmtUSD(totals.pending)}
+          sub="awaiting approval"
+          tone="warning"
+        />
+        <Summary
+          label="Paid out"
+          value={fmtUSD(totals.paid)}
+          sub="settled to players"
+          tone="success"
+        />
       </div>
 
       {q.isLoading ? (
@@ -161,7 +181,8 @@ function CashoutsPage() {
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base">{g.gameName}</CardTitle>
                     <CardDescription className="text-[10px] uppercase tracking-widest">
-                      {g.provider ?? "no provider"} · {g.rows.length} cashout{g.rows.length === 1 ? "" : "s"}
+                      {g.provider ?? "no provider"} · {g.rows.length} cashout
+                      {g.rows.length === 1 ? "" : "s"}
                     </CardDescription>
                   </div>
                   <div className="flex gap-4 text-right">
@@ -190,9 +211,13 @@ function CashoutsPage() {
                       <TableRow key={r.id}>
                         <TableCell>
                           <div className="font-medium text-sm">{r.player?.username ?? "—"}</div>
-                          <div className="text-[11px] text-muted-foreground">{r.player?.full_name ?? ""}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {r.player?.full_name ?? ""}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{r.player?.game_id ?? "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {r.player?.game_id ?? "—"}
+                        </TableCell>
                         <TableCell className="text-xs">
                           {r.method ? (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
@@ -222,7 +247,9 @@ function CashoutsPage() {
                                 variant="outline"
                                 className="h-7 px-2 text-success border-success/30 hover:bg-success/10"
                                 disabled={decideMutation.isPending}
-                                onClick={() => decideMutation.mutate({ id: r.id, decision: "approved" })}
+                                onClick={() =>
+                                  decideMutation.mutate({ id: r.id, decision: "approved" })
+                                }
                               >
                                 <Check className="size-3" />
                               </Button>
@@ -231,7 +258,9 @@ function CashoutsPage() {
                                 variant="outline"
                                 className="h-7 px-2 text-destructive border-destructive/30 hover:bg-destructive/10"
                                 disabled={decideMutation.isPending}
-                                onClick={() => decideMutation.mutate({ id: r.id, decision: "rejected" })}
+                                onClick={() =>
+                                  decideMutation.mutate({ id: r.id, decision: "rejected" })
+                                }
                               >
                                 <X className="size-3" />
                               </Button>
@@ -285,7 +314,15 @@ function Summary({
   );
 }
 
-function Mini({ label, value, tone }: { label: string; value: string; tone?: "success" | "warning" }) {
+function Mini({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "success" | "warning";
+}) {
   return (
     <div>
       <div className="text-[9px] uppercase tracking-widest text-muted-foreground">{label}</div>

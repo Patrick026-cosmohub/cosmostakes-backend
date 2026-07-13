@@ -5,10 +5,23 @@ import { getPlatformsOverview } from "@/lib/admin.functions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { fmtUSD } from "@/lib/format";
-import { Gamepad2, Users, ArrowDownToLine, ArrowUpFromLine, Wallet, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  Gamepad2,
+  Users,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/platforms")({
   component: PlatformsPage,
@@ -18,8 +31,10 @@ function PlatformsPage() {
   const fetchOverview = useServerFn(getPlatformsOverview);
   const q = useQuery({ queryKey: ["platforms-overview"], queryFn: () => fetchOverview() });
 
-  if (q.isLoading) return <div className="p-6 text-sm text-muted-foreground">Loading platforms…</div>;
-  if (q.error) return <div className="p-6 text-sm text-destructive">Failed: {(q.error as Error).message}</div>;
+  if (q.isLoading)
+    return <div className="p-6 text-sm text-muted-foreground">Loading platforms…</div>;
+  if (q.error)
+    return <div className="p-6 text-sm text-destructive">Failed: {(q.error as Error).message}</div>;
 
   const { platforms, totals } = q.data!;
 
@@ -28,7 +43,8 @@ function PlatformsPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Gaming Platforms</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Unified overview of all {totals.platforms} hosted game platforms — players, deposits, cashouts, and profit per platform.
+          Unified overview of all {totals.platforms} hosted game platforms — players, deposits,
+          cashouts, and profit per platform.
         </p>
       </div>
 
@@ -36,7 +52,12 @@ function PlatformsPage() {
         <Kpi icon={Gamepad2} label="Platforms" value={String(totals.platforms)} />
         <Kpi icon={Users} label="Total Players" value={String(totals.players)} />
         <Kpi icon={ArrowDownToLine} label="Total IN" value={fmtUSD(totals.in)} tone="success" />
-        <Kpi icon={ArrowUpFromLine} label="Total OUT" value={fmtUSD(totals.out)} tone="destructive" />
+        <Kpi
+          icon={ArrowUpFromLine}
+          label="Total OUT"
+          value={fmtUSD(totals.out)}
+          tone="destructive"
+        />
         <Kpi
           icon={totals.profit >= 0 ? TrendingUp : TrendingDown}
           label="Net Profit"
@@ -69,7 +90,12 @@ function PlatformsPage() {
                 <Row label="Player balances" value={fmtUSD(p.balance)} />
                 <Row label="Money IN" value={fmtUSD(p.in)} tone="success" />
                 <Row label="Money OUT" value={fmtUSD(p.out)} tone="destructive" />
-                <Row label="Profit" value={fmtUSD(p.profit)} tone={p.profit >= 0 ? "success" : "destructive"} bold />
+                <Row
+                  label="Profit"
+                  value={fmtUSD(p.profit)}
+                  tone={p.profit >= 0 ? "success" : "destructive"}
+                  bold
+                />
                 <Row label="Pending deposit" value={fmtUSD(p.pendingDeposits)} />
                 <Row label="Pending cashout" value={fmtUSD(p.pendingCashouts)} />
                 <div className="pt-2 border-t border-border">
@@ -78,12 +104,19 @@ function PlatformsPage() {
                     <span>{share.toFixed(1)}%</span>
                   </div>
                   <div className="h-1.5 bg-surface-hover rounded">
-                    <div className="h-1.5 bg-primary rounded" style={{ width: `${Math.min(100, share)}%` }} />
+                    <div
+                      className="h-1.5 bg-primary rounded"
+                      style={{ width: `${Math.min(100, share)}%` }}
+                    />
                   </div>
                 </div>
                 <div className="pt-2 flex gap-2">
-                  <Link to="/players" className="text-[11px] text-primary hover:underline">View players →</Link>
-                  <Link to="/reports" className="text-[11px] text-primary hover:underline">Reports →</Link>
+                  <Link to="/players" className="text-[11px] text-primary hover:underline">
+                    View players →
+                  </Link>
+                  <Link to="/reports" className="text-[11px] text-primary hover:underline">
+                    Reports →
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -94,7 +127,9 @@ function PlatformsPage() {
       <Card className="bg-surface border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">All Platforms — Comparison</CardTitle>
-          <CardDescription className="text-xs">Sorted by money out (highest payout first).</CardDescription>
+          <CardDescription className="text-xs">
+            Sorted by money out (highest payout first).
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -111,26 +146,33 @@ function PlatformsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...platforms].sort((a, b) => b.out - a.out).map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.name}</TableCell>
-                  <TableCell className="text-right">{p.players}</TableCell>
-                  <TableCell className="text-right">{fmtUSD(p.balance)}</TableCell>
-                  <TableCell className="text-right text-success">{fmtUSD(p.in)}</TableCell>
-                  <TableCell className="text-right text-destructive">{fmtUSD(p.out)}</TableCell>
-                  <TableCell className={`text-right font-medium ${p.profit >= 0 ? "text-success" : "text-destructive"}`}>
-                    {fmtUSD(p.profit)}
-                  </TableCell>
-                  <TableCell className="text-right text-warning">
-                    {fmtUSD(p.pendingDeposits + p.pendingCashouts)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={p.is_active ? "default" : "secondary"} className="text-[10px]">
-                      {p.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {[...platforms]
+                .sort((a, b) => b.out - a.out)
+                .map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="text-right">{p.players}</TableCell>
+                    <TableCell className="text-right">{fmtUSD(p.balance)}</TableCell>
+                    <TableCell className="text-right text-success">{fmtUSD(p.in)}</TableCell>
+                    <TableCell className="text-right text-destructive">{fmtUSD(p.out)}</TableCell>
+                    <TableCell
+                      className={`text-right font-medium ${p.profit >= 0 ? "text-success" : "text-destructive"}`}
+                    >
+                      {fmtUSD(p.profit)}
+                    </TableCell>
+                    <TableCell className="text-right text-warning">
+                      {fmtUSD(p.pendingDeposits + p.pendingCashouts)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={p.is_active ? "default" : "secondary"}
+                        className="text-[10px]"
+                      >
+                        {p.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -139,7 +181,17 @@ function PlatformsPage() {
   );
 }
 
-function Kpi({ icon: Icon, label, value, tone }: { icon: any; label: string; value: string; tone?: "success" | "destructive" }) {
+function Kpi({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  tone?: "success" | "destructive";
+}) {
   return (
     <Card className="bg-surface border-border">
       <CardContent className="p-4">
@@ -147,7 +199,9 @@ function Kpi({ icon: Icon, label, value, tone }: { icon: any; label: string; val
           <Icon className="size-3.5" />
           {label}
         </div>
-        <div className={`mt-1.5 text-lg font-semibold ${tone === "success" ? "text-success" : tone === "destructive" ? "text-destructive" : ""}`}>
+        <div
+          className={`mt-1.5 text-lg font-semibold ${tone === "success" ? "text-success" : tone === "destructive" ? "text-destructive" : ""}`}
+        >
           {value}
         </div>
       </CardContent>
@@ -155,11 +209,23 @@ function Kpi({ icon: Icon, label, value, tone }: { icon: any; label: string; val
   );
 }
 
-function Row({ label, value, tone, bold }: { label: string; value: string; tone?: "success" | "destructive"; bold?: boolean }) {
+function Row({
+  label,
+  value,
+  tone,
+  bold,
+}: {
+  label: string;
+  value: string;
+  tone?: "success" | "destructive";
+  bold?: boolean;
+}) {
   return (
     <div className="flex justify-between items-center">
       <span className="text-muted-foreground">{label}</span>
-      <span className={`${bold ? "font-semibold" : ""} ${tone === "success" ? "text-success" : tone === "destructive" ? "text-destructive" : ""}`}>
+      <span
+        className={`${bold ? "font-semibold" : ""} ${tone === "success" ? "text-success" : tone === "destructive" ? "text-destructive" : ""}`}
+      >
         {value}
       </span>
     </div>

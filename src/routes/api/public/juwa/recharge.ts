@@ -30,7 +30,12 @@ const schema = z.object({
   bonusAmount: z.number().min(0).optional().default(0),
 });
 
-async function handle(request: Request, type: "recharge" | "withdraw", path: string, prefix: string) {
+async function handle(
+  request: Request,
+  type: "recharge" | "withdraw",
+  path: string,
+  prefix: string,
+) {
   const authFail = checkApiKey(request);
   if (authFail) return authFail;
 
@@ -63,7 +68,10 @@ async function handle(request: Request, type: "recharge" | "withdraw", path: str
     const row = player as { juwa_username?: string | null; juwa_password?: string | null };
     const customerUsername = row.juwa_username?.trim();
     if (!customerUsername || !row.juwa_password?.trim()) {
-      return jsonError(400, "REFUJ player registration is still pending. Create username again before depositing.");
+      return jsonError(
+        400,
+        "REFUJ player registration is still pending. Create username again before depositing.",
+      );
     }
 
     let result;

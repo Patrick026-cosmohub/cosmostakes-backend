@@ -23,7 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Settings as SettingsIcon, Gamepad2, Loader2, Plug, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import {
+  Settings as SettingsIcon,
+  Gamepad2,
+  Loader2,
+  Plug,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -110,7 +118,10 @@ function GeneralSettings() {
       <CardContent>
         <div className="grid md:grid-cols-2 gap-4">
           <Field label="Platform name">
-            <Input value={form.platform_name ?? ""} onChange={(e) => setField("platform_name", e.target.value)} />
+            <Input
+              value={form.platform_name ?? ""}
+              onChange={(e) => setField("platform_name", e.target.value)}
+            />
           </Field>
           <Field label="Company logo URL">
             <Input
@@ -136,31 +147,51 @@ function GeneralSettings() {
           </Field>
           <Field label="Time zone">
             <Select value={form.timezone} onValueChange={(v) => setField("timezone", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {TIMEZONES.map((tz) => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                {TIMEZONES.map((tz) => (
+                  <SelectItem key={tz} value={tz}>
+                    {tz}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
           <Field label="Currency">
             <Select value={form.currency} onValueChange={(v) => setField("currency", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
           <Field label="Date format">
             <Select value={form.date_format} onValueChange={(v) => setField("date_format", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {DATE_FORMATS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                {DATE_FORMATS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
           <Field label="Time format">
             <Select value={form.time_format} onValueChange={(v) => setField("time_format", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="12h">12-hour (1:30 PM)</SelectItem>
                 <SelectItem value="24h">24-hour (13:30)</SelectItem>
@@ -198,7 +229,8 @@ function ApiConfiguration() {
   const q = useQuery({ queryKey: ["platform-integrations"], queryFn: () => fetchList() });
 
   if (q.isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
-  if (q.error) return <div className="text-sm text-destructive">Failed: {(q.error as Error).message}</div>;
+  if (q.error)
+    return <div className="text-sm text-destructive">Failed: {(q.error as Error).message}</div>;
 
   return (
     <div className="grid md:grid-cols-2 gap-3">
@@ -232,7 +264,8 @@ function IntegrationCard({ row }: { row: any }) {
   const testM = useMutation({
     mutationFn: () => test({ data: { game_id: row.game.id } }),
     onSuccess: (r: any) => {
-      if (r.connection_status === "connected") toast.success(`${row.game.name}: ${r.last_test_message}`);
+      if (r.connection_status === "connected")
+        toast.success(`${row.game.name}: ${r.last_test_message}`);
       else toast.error(`${row.game.name}: ${r.last_test_message}`);
       qc.invalidateQueries({ queryKey: ["platform-integrations"] });
     },
@@ -317,15 +350,27 @@ function IntegrationCard({ row }: { row: any }) {
         </Field>
 
         <div className="flex justify-between text-[11px] text-muted-foreground border-t border-border pt-2">
-          <span>Last sync: {integ.last_synced_at ? new Date(integ.last_synced_at).toLocaleString() : "—"}</span>
-          <span>Last test: {integ.last_test_at ? new Date(integ.last_test_at).toLocaleString() : "—"}</span>
+          <span>
+            Last sync:{" "}
+            {integ.last_synced_at ? new Date(integ.last_synced_at).toLocaleString() : "—"}
+          </span>
+          <span>
+            Last test: {integ.last_test_at ? new Date(integ.last_test_at).toLocaleString() : "—"}
+          </span>
         </div>
         {integ.last_test_message && (
-          <div className="text-[11px] text-muted-foreground italic">"{integ.last_test_message}"</div>
+          <div className="text-[11px] text-muted-foreground italic">
+            "{integ.last_test_message}"
+          </div>
         )}
 
         <div className="flex gap-2 pt-1">
-          <Button size="sm" className="flex-1" disabled={saveM.isPending} onClick={() => saveM.mutate()}>
+          <Button
+            size="sm"
+            className="flex-1"
+            disabled={saveM.isPending}
+            onClick={() => saveM.mutate()}
+          >
             {saveM.isPending && <Loader2 className="size-3.5 animate-spin" />}
             Save
           </Button>
@@ -336,7 +381,11 @@ function IntegrationCard({ row }: { row: any }) {
             disabled={testM.isPending}
             onClick={() => testM.mutate()}
           >
-            {testM.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Plug className="size-3.5" />}
+            {testM.isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Plug className="size-3.5" />
+            )}
             Test connection
           </Button>
         </div>
@@ -364,7 +413,11 @@ function StatusBadge({ status }: { status: string }) {
         <AlertCircle className="size-3 mr-1" /> Configured
       </Badge>
     );
-  return <Badge variant="secondary" className="text-[10px]">Not configured</Badge>;
+  return (
+    <Badge variant="secondary" className="text-[10px]">
+      Not configured
+    </Badge>
+  );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

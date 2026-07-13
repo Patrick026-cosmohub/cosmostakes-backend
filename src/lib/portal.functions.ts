@@ -4,10 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 type AppRole = "super_admin" | "admin" | "finance_agent" | "support_agent";
 
-async function requireRoles(
-  ctx: { supabase: any; userId: string },
-  roles: AppRole[],
-) {
+async function requireRoles(ctx: { supabase: any; userId: string }, roles: AppRole[]) {
   for (const role of roles) {
     const { data, error } = await ctx.supabase.rpc("has_role", {
       _user_id: ctx.userId,
@@ -53,8 +50,17 @@ export const upsertBonus = createServerFn({ method: "POST" })
     await requireRoles(context, ["super_admin", "admin"]);
     const { supabase, userId } = context;
     const row = data.id
-      ? await supabase.from("bonuses").update({ ...data, id: undefined }).eq("id", data.id).select().single()
-      : await supabase.from("bonuses").insert({ ...data, id: undefined }).select().single();
+      ? await supabase
+          .from("bonuses")
+          .update({ ...data, id: undefined })
+          .eq("id", data.id)
+          .select()
+          .single()
+      : await supabase
+          .from("bonuses")
+          .insert({ ...data, id: undefined })
+          .select()
+          .single();
     if (row.error) throw new Error(row.error.message);
     await supabase.from("audit_logs").insert({
       staff_id: userId,
@@ -116,8 +122,17 @@ export const upsertVipTier = createServerFn({ method: "POST" })
     await requireRoles(context, ["super_admin", "admin"]);
     const { supabase, userId } = context;
     const row = data.id
-      ? await supabase.from("vip_tiers").update({ ...data, id: undefined }).eq("id", data.id).select().single()
-      : await supabase.from("vip_tiers").insert({ ...data, id: undefined }).select().single();
+      ? await supabase
+          .from("vip_tiers")
+          .update({ ...data, id: undefined })
+          .eq("id", data.id)
+          .select()
+          .single()
+      : await supabase
+          .from("vip_tiers")
+          .insert({ ...data, id: undefined })
+          .select()
+          .single();
     if (row.error) throw new Error(row.error.message);
     await supabase.from("audit_logs").insert({
       staff_id: userId,
@@ -179,7 +194,12 @@ export const upsertAnnouncement = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const payload = { ...data, id: undefined, created_by: userId };
     const row = data.id
-      ? await supabase.from("announcements").update({ ...data, id: undefined }).eq("id", data.id).select().single()
+      ? await supabase
+          .from("announcements")
+          .update({ ...data, id: undefined })
+          .eq("id", data.id)
+          .select()
+          .single()
       : await supabase.from("announcements").insert(payload).select().single();
     if (row.error) throw new Error(row.error.message);
     await supabase.from("audit_logs").insert({
@@ -207,7 +227,11 @@ export const deleteAnnouncement = createServerFn({ method: "POST" })
 export const getSiteTheme = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.from("site_theme").select("*").eq("id", 1).maybeSingle();
+    const { data, error } = await context.supabase
+      .from("site_theme")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
     if (error) throw new Error(error.message);
     return data;
   });
@@ -304,7 +328,11 @@ export const deleteMusicTrack = createServerFn({ method: "POST" })
 export const getNotificationSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.from("notification_settings").select("*").eq("id", 1).maybeSingle();
+    const { data, error } = await context.supabase
+      .from("notification_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
     if (error) throw new Error(error.message);
     return data;
   });
@@ -326,7 +354,11 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
     await requireRoles(context, ["super_admin", "admin"]);
     const { error } = await context.supabase
       .from("notification_settings")
-      .update({ ...data, from_email: data.from_email || null, updated_at: new Date().toISOString() })
+      .update({
+        ...data,
+        from_email: data.from_email || null,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", 1);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -337,9 +369,8 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
 export const getSecuritySettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.from("security_settings").select("*").eq("id", 1).maybeSingle();
-    if (error) throw new Error(error.message);
-    return data;
+    const { loadSecurityPolicy } = await import("./security-policy.server");
+    return loadSecurityPolicy(context.supabase);
   });
 
 export const updateSecuritySettings = createServerFn({ method: "POST" })
@@ -353,12 +384,19 @@ export const updateSecuritySettings = createServerFn({ method: "POST" })
         require_symbol: z.boolean(),
         session_timeout_minutes: z.number().int().min(5).max(1440),
         enforce_2fa_super_admin: z.boolean(),
-        ip_whitelist: z.array(z.string()).default([]),
+        ip_whitelist: z.array(z.string().trim().min(1).max(80)).max(50).default([]),
+        max_login_attempts: z.number().int().min(3).max(20),
+        lockout_minutes: z.number().int().min(1).max(1440),
+        password_rotation_days: z.number().int().min(0).max(365),
       })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
     await requireRoles(context, ["super_admin"]);
+    const claims = context.claims as { aal?: string } | undefined;
+    if (data.enforce_2fa_super_admin && context.authMode === "supabase" && claims?.aal !== "aal2") {
+      throw new Error("Verify 2FA on this super admin session before enforcing it globally");
+    }
     const { error } = await context.supabase
       .from("security_settings")
       .update({ ...data, updated_at: new Date().toISOString() })
@@ -372,6 +410,35 @@ export const updateSecuritySettings = createServerFn({ method: "POST" })
       new_value: data,
     });
     return { ok: true };
+  });
+
+export const revokeManualStaffSessions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        staff_id: z.string().uuid().optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await requireRoles(context, ["super_admin"]);
+
+    let query = context.supabase
+      .from("admin_sessions" as never)
+      .delete({ count: "exact" } as never);
+    if (data.staff_id) query = query.eq("staff_id", data.staff_id);
+    const { count, error } = await query;
+    if (error) throw new Error(error.message);
+
+    await context.supabase.from("audit_logs").insert({
+      staff_id: context.userId,
+      action: "security.sessions.revoke",
+      entity_type: "admin_sessions",
+      entity_id: data.staff_id ?? null,
+      metadata: { revoked_count: count ?? 0, staff_id: data.staff_id ?? null },
+    });
+    return { ok: true, revoked: count ?? 0 };
   });
 
 /* ============ TRANSACTIONS (unified) ============ */
@@ -397,13 +464,20 @@ export const listTransactions = createServerFn({ method: "GET" })
     const deposits =
       data.kind === "cashout"
         ? { data: [] as any[] }
-        : await supabase.from("deposit_requests").select(select).gte("requested_at", since).order("requested_at", { ascending: false }).limit(500);
+        : await supabase
+            .from("deposit_requests")
+            .select(select)
+            .gte("requested_at", since)
+            .order("requested_at", { ascending: false })
+            .limit(500);
     const cashouts =
       data.kind === "deposit"
         ? { data: [] as any[] }
         : await supabase
             .from("cashout_requests")
-            .select("id,amount,status,requested_at,processed_at,destination,player:players(id,username,full_name,game_id),method:payment_methods(name,kind)")
+            .select(
+              "id,amount,status,requested_at,processed_at,destination,player:players(id,username,full_name,game_id),method:payment_methods(name,kind)",
+            )
             .gte("requested_at", since)
             .order("requested_at", { ascending: false })
             .limit(500);
@@ -416,12 +490,21 @@ export const listTransactions = createServerFn({ method: "GET" })
       requested_at: string;
       processed_at: string | null;
       reference: string | null;
-      player: { id: string; username: string; full_name: string | null; game_id: string | null } | null;
+      player: {
+        id: string;
+        username: string;
+        full_name: string | null;
+        game_id: string | null;
+      } | null;
       method: { name: string; kind: string } | null;
     };
     let rows: Row[] = [
       ...((deposits.data ?? []) as any[]).map((r) => ({ ...r, kind: "deposit" as const })),
-      ...((cashouts.data ?? []) as any[]).map((r) => ({ ...r, kind: "cashout" as const, reference: r.destination })),
+      ...((cashouts.data ?? []) as any[]).map((r) => ({
+        ...r,
+        kind: "cashout" as const,
+        reference: r.destination,
+      })),
     ];
     if (data.status !== "all") rows = rows.filter((r) => r.status === data.status);
     const q = data.q.trim().toLowerCase();
@@ -444,7 +527,10 @@ export const getSystemStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const t0 = Date.now();
-    const { error: dbErr } = await context.supabase.from("games").select("id", { head: true, count: "exact" }).limit(1);
+    const { error: dbErr } = await context.supabase
+      .from("games")
+      .select("id", { head: true, count: "exact" })
+      .limit(1);
     const dbLatency = Date.now() - t0;
 
     const t1 = Date.now();
@@ -466,7 +552,16 @@ export const getSystemStatus = createServerFn({ method: "GET" })
 
 /* ============ BACKUPS — manual CSV export of any table ============ */
 
-const exportable = ["players", "deposit_requests", "cashout_requests", "wallet_ledger", "audit_logs", "bonuses", "vip_tiers", "announcements"] as const;
+const exportable = [
+  "players",
+  "deposit_requests",
+  "cashout_requests",
+  "wallet_ledger",
+  "audit_logs",
+  "bonuses",
+  "vip_tiers",
+  "announcements",
+] as const;
 
 export const exportTableCsv = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -483,7 +578,10 @@ export const exportTableCsv = createServerFn({ method: "POST" })
       const s = typeof v === "object" ? JSON.stringify(v) : String(v);
       return `"${s.replace(/"/g, '""')}"`;
     };
-    const csv = [headers.join(","), ...records.map((r) => headers.map((h) => esc(r[h])).join(","))].join("\n");
+    const csv = [
+      headers.join(","),
+      ...records.map((r) => headers.map((h) => esc(r[h])).join(",")),
+    ].join("\n");
     await context.supabase.from("audit_logs").insert({
       staff_id: context.userId,
       action: "backup.export",
@@ -568,7 +666,11 @@ export const updateGame = createServerFn({ method: "POST" })
 export const listGamesAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.from("games").select("*").order("sort_order").order("name");
+    const { data, error } = await context.supabase
+      .from("games")
+      .select("*")
+      .order("sort_order")
+      .order("name");
     if (error) throw new Error(error.message);
     return data ?? [];
   });

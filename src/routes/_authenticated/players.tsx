@@ -164,7 +164,9 @@ function PlayerListCard({
                   <TableCell className="text-muted-foreground text-xs">
                     {p.email || p.phone || "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{p.game_id ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs">
+                    {p.game_id ?? "—"}
+                  </TableCell>
                   <TableCell className="text-xs">
                     {p.game ? (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
@@ -174,7 +176,9 @@ function PlayerListCard({
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtUSD(p.balance as number)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {fmtUSD(p.balance as number)}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={cn(

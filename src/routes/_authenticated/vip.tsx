@@ -64,7 +64,10 @@ function VipPage() {
   });
   const remove = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
-    onSuccess: () => { toast.success("Deleted"); qc.invalidateQueries({ queryKey: ["vip"] }); },
+    onSuccess: () => {
+      toast.success("Deleted");
+      qc.invalidateQueries({ queryKey: ["vip"] });
+    },
   });
 
   const rows = (q.data ?? []) as Tier[];
@@ -73,10 +76,23 @@ function VipPage() {
     <div className="p-4 lg:p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2"><Crown className="size-5 text-primary" /> VIP Tiers</h1>
-          <p className="text-xs text-muted-foreground">Customize VIP levels — players see updates instantly.</p>
+          <h1 className="text-xl font-semibold flex items-center gap-2">
+            <Crown className="size-5 text-primary" /> VIP Tiers
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Customize VIP levels — players see updates instantly.
+          </p>
         </div>
-        <Button onClick={() => setEditing({ color: "#FFD700", sort_order: rows.length + 1, is_active: true, perks: [] })}>
+        <Button
+          onClick={() =>
+            setEditing({
+              color: "#FFD700",
+              sort_order: rows.length + 1,
+              is_active: true,
+              perks: [],
+            })
+          }
+        >
           <Plus className="size-4 mr-1" /> New tier
         </Button>
       </div>
@@ -86,50 +102,164 @@ function VipPage() {
           <Card key={t.id} style={{ borderTop: `3px solid ${t.color}` }}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2">{t.icon && <span>{t.icon}</span>}{t.name}</span>
+                <span className="flex items-center gap-2">
+                  {t.icon && <span>{t.icon}</span>}
+                  {t.name}
+                </span>
                 <span className="text-[10px] font-mono">#{t.sort_order}</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs space-y-1.5">
-              <div className="flex justify-between"><span className="text-muted-foreground">Deposit req.</span><span className="font-mono">{fmtUSD(t.deposit_required)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Monthly req.</span><span className="font-mono">{fmtUSD(t.monthly_activity_required)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Cashback</span><span className="font-mono">{t.cashback_pct}%</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Priority support</span><span>{t.priority_support ? "Yes" : "No"}</span></div>
-              {t.perks.length > 0 && <div className="text-muted-foreground text-[10px]">Perks: {t.perks.join(", ")}</div>}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Deposit req.</span>
+                <span className="font-mono">{fmtUSD(t.deposit_required)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Monthly req.</span>
+                <span className="font-mono">{fmtUSD(t.monthly_activity_required)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Cashback</span>
+                <span className="font-mono">{t.cashback_pct}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Priority support</span>
+                <span>{t.priority_support ? "Yes" : "No"}</span>
+              </div>
+              {t.perks.length > 0 && (
+                <div className="text-muted-foreground text-[10px]">Perks: {t.perks.join(", ")}</div>
+              )}
               <div className="flex gap-1.5 pt-2">
-                <Button size="sm" variant="outline" onClick={() => setEditing(t)}><Pencil className="size-3" /></Button>
-                <Button size="sm" variant="ghost" onClick={() => remove.mutate(t.id)}><Trash2 className="size-3 text-destructive" /></Button>
+                <Button size="sm" variant="outline" onClick={() => setEditing(t)}>
+                  <Pencil className="size-3" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => remove.mutate(t.id)}>
+                  <Trash2 className="size-3 text-destructive" />
+                </Button>
               </div>
             </CardContent>
           </Card>
         ))}
-        {rows.length === 0 && !q.isLoading && <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No VIP tiers yet.</CardContent></Card>}
+        {rows.length === 0 && !q.isLoading && (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              No VIP tiers yet.
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{editing?.id ? "Edit tier" : "New VIP tier"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editing?.id ? "Edit tier" : "New VIP tier"}</DialogTitle>
+          </DialogHeader>
           {editing && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Name</Label><Input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
-                <div><Label>Icon (emoji)</Label><Input value={editing.icon ?? ""} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} /></div>
+                <div>
+                  <Label>Name</Label>
+                  <Input
+                    value={editing.name ?? ""}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Icon (emoji)</Label>
+                  <Input
+                    value={editing.icon ?? ""}
+                    onChange={(e) => setEditing({ ...editing, icon: e.target.value })}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Color</Label><Input type="color" value={editing.color ?? "#888888"} onChange={(e) => setEditing({ ...editing, color: e.target.value })} /></div>
-                <div><Label>Sort order</Label><Input type="number" value={editing.sort_order ?? 0} onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })} /></div>
+                <div>
+                  <Label>Color</Label>
+                  <Input
+                    type="color"
+                    value={editing.color ?? "#888888"}
+                    onChange={(e) => setEditing({ ...editing, color: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Sort order</Label>
+                  <Input
+                    type="number"
+                    value={editing.sort_order ?? 0}
+                    onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div><Label>Deposit req.</Label><Input type="number" value={editing.deposit_required ?? 0} onChange={(e) => setEditing({ ...editing, deposit_required: Number(e.target.value) })} /></div>
-                <div><Label>Monthly req.</Label><Input type="number" value={editing.monthly_activity_required ?? 0} onChange={(e) => setEditing({ ...editing, monthly_activity_required: Number(e.target.value) })} /></div>
-                <div><Label>Cashback %</Label><Input type="number" value={editing.cashback_pct ?? 0} onChange={(e) => setEditing({ ...editing, cashback_pct: Number(e.target.value) })} /></div>
+                <div>
+                  <Label>Deposit req.</Label>
+                  <Input
+                    type="number"
+                    value={editing.deposit_required ?? 0}
+                    onChange={(e) =>
+                      setEditing({ ...editing, deposit_required: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Monthly req.</Label>
+                  <Input
+                    type="number"
+                    value={editing.monthly_activity_required ?? 0}
+                    onChange={(e) =>
+                      setEditing({ ...editing, monthly_activity_required: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Cashback %</Label>
+                  <Input
+                    type="number"
+                    value={editing.cashback_pct ?? 0}
+                    onChange={(e) =>
+                      setEditing({ ...editing, cashback_pct: Number(e.target.value) })
+                    }
+                  />
+                </div>
               </div>
-              <div><Label>Perks (comma-separated)</Label><Textarea value={(editing.perks ?? []).join(", ")} onChange={(e) => setEditing({ ...editing, perks: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} /></div>
+              <div>
+                <Label>Perks (comma-separated)</Label>
+                <Textarea
+                  value={(editing.perks ?? []).join(", ")}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      perks: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                />
+              </div>
               <div className="flex gap-4">
-                <div className="flex items-center gap-2"><Switch checked={editing.priority_support ?? false} onCheckedChange={(v) => setEditing({ ...editing, priority_support: v })} /><Label>Priority support</Label></div>
-                <div className="flex items-center gap-2"><Switch checked={editing.is_active ?? true} onCheckedChange={(v) => setEditing({ ...editing, is_active: v })} /><Label>Active</Label></div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={editing.priority_support ?? false}
+                    onCheckedChange={(v) => setEditing({ ...editing, priority_support: v })}
+                  />
+                  <Label>Priority support</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={editing.is_active ?? true}
+                    onCheckedChange={(v) => setEditing({ ...editing, is_active: v })}
+                  />
+                  <Label>Active</Label>
+                </div>
               </div>
-              <Button className="w-full" disabled={save.isPending} onClick={() => save.mutate(editing)}>Save</Button>
+              <Button
+                className="w-full"
+                disabled={save.isPending}
+                onClick={() => save.mutate(editing)}
+              >
+                Save
+              </Button>
             </div>
           )}
         </DialogContent>

@@ -7,12 +7,27 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { fmtUSD, fmtDateTime } from "@/lib/format";
 import { Receipt, Download } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/transactions")({ component: TransactionsPage });
+export const Route = createFileRoute("/_authenticated/transactions")({
+  component: TransactionsPage,
+});
 
 type Row = {
   id: string;
@@ -40,7 +55,17 @@ function TransactionsPage() {
   const rows = (query.data ?? []) as Row[];
 
   const exportCsv = () => {
-    const headers = ["kind", "amount", "status", "requested_at", "processed_at", "player", "game_id", "method", "reference"];
+    const headers = [
+      "kind",
+      "amount",
+      "status",
+      "requested_at",
+      "processed_at",
+      "player",
+      "game_id",
+      "method",
+      "reference",
+    ];
     const csv = [
       headers.join(","),
       ...rows.map((r) =>
@@ -70,17 +95,29 @@ function TransactionsPage() {
     <div className="p-4 lg:p-6 space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2"><Receipt className="size-5 text-primary" /> Transactions</h1>
-          <p className="text-xs text-muted-foreground">Unified deposits + cashouts with advanced filters and export.</p>
+          <h1 className="text-xl font-semibold flex items-center gap-2">
+            <Receipt className="size-5 text-primary" /> Transactions
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Unified deposits + cashouts with advanced filters and export.
+          </p>
         </div>
-        <Button onClick={exportCsv} disabled={rows.length === 0}><Download className="size-4 mr-1" /> CSV</Button>
+        <Button onClick={exportCsv} disabled={rows.length === 0}>
+          <Download className="size-4 mr-1" /> CSV
+        </Button>
       </div>
 
       <Card>
         <CardContent className="p-3 grid grid-cols-2 md:grid-cols-4 gap-2">
-          <Input placeholder="Search player, ref…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Input
+            placeholder="Search player, ref…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
           <Select value={kind} onValueChange={(v) => setKind(v as typeof kind)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All kinds</SelectItem>
               <SelectItem value="deposit">Deposits</SelectItem>
@@ -88,15 +125,27 @@ function TransactionsPage() {
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {["all", "pending", "approved", "rejected", "failed", "uncertain"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              {["all", "pending", "approved", "rejected", "failed", "uncertain"].map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {[7, 30, 90, 180, 365].map((d) => <SelectItem key={d} value={String(d)}>Last {d} days</SelectItem>)}
+              {[7, 30, 90, 180, 365].map((d) => (
+                <SelectItem key={d} value={String(d)}>
+                  Last {d} days
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </CardContent>
@@ -120,16 +169,24 @@ function TransactionsPage() {
               {rows.map((r) => (
                 <TableRow key={`${r.kind}-${r.id}`}>
                   <TableCell className="text-xs">{fmtDateTime(r.requested_at)}</TableCell>
-                  <TableCell><Badge variant={r.kind === "deposit" ? "default" : "secondary"}>{r.kind}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant={r.kind === "deposit" ? "default" : "secondary"}>{r.kind}</Badge>
+                  </TableCell>
                   <TableCell>{r.player?.username ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs">{r.player?.game_id ?? "—"}</TableCell>
                   <TableCell className="text-xs">{r.method?.name ?? "—"}</TableCell>
                   <TableCell className="text-right font-mono">{fmtUSD(r.amount)}</TableCell>
-                  <TableCell><Badge variant="outline">{r.status}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{r.status}</Badge>
+                  </TableCell>
                 </TableRow>
               ))}
               {rows.length === 0 && !query.isLoading && (
-                <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">No transactions match.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">
+                    No transactions match.
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>

@@ -43,11 +43,14 @@ export const Route = createFileRoute("/api/public/chat/start")({
         if (error || !ticket) return jsonError(500, error?.message ?? "Failed to create ticket");
 
         // Insert bot greeting + optional player initial message
-        const messages: Array<{ ticket_id: string; sender_type: "bot" | "player"; body: string }> = [
-          { ticket_id: ticket.id, sender_type: "bot", body: BOT_GREETING },
-        ];
+        const messages: Array<{ ticket_id: string; sender_type: "bot" | "player"; body: string }> =
+          [{ ticket_id: ticket.id, sender_type: "bot", body: BOT_GREETING }];
         if (initial_message && initial_message.trim()) {
-          messages.push({ ticket_id: ticket.id, sender_type: "player", body: initial_message.trim().slice(0, 4000) });
+          messages.push({
+            ticket_id: ticket.id,
+            sender_type: "player",
+            body: initial_message.trim().slice(0, 4000),
+          });
         }
         await supabaseAdmin.from("chat_messages").insert(messages);
 

@@ -27,8 +27,10 @@ export async function getRefujIntegration(platform: RefujPlatform) {
   if (gameError) throw new Error(gameError.message);
 
   const game =
-    (games ?? []).find((g: any) => compact(g.provider) === compact(spec.provider) || compact(g.name) === compact(spec.name)) ??
-    null;
+    (games ?? []).find(
+      (g: any) =>
+        compact(g.provider) === compact(spec.provider) || compact(g.name) === compact(spec.name),
+    ) ?? null;
   if (!game) throw new Error(`${spec.name} is not configured in games.`);
 
   const { data: integration, error: integrationError } = await supabaseAdmin

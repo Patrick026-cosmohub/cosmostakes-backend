@@ -25,6 +25,8 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedPromotionsRouteImport } from './routes/_authenticated/promotions'
 import { Route as AuthenticatedPlayersRouteImport } from './routes/_authenticated/players'
 import { Route as AuthenticatedPlatformsRouteImport } from './routes/_authenticated/platforms'
+import { Route as AuthenticatedPayoutsRouteImport } from './routes/_authenticated/payouts'
+import { Route as AuthenticatedPaymentsRouteImport } from './routes/_authenticated/payments'
 import { Route as AuthenticatedPaymentMethodsRouteImport } from './routes/_authenticated/payment-methods'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedDepositsRouteImport } from './routes/_authenticated/deposits'
@@ -37,6 +39,8 @@ import { Route as AuthenticatedBackupsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedAuditLogRouteImport } from './routes/_authenticated/audit-log'
 import { Route as AuthenticatedAnnouncementsRouteImport } from './routes/_authenticated/announcements'
 import { Route as ApiPublicOutboundIpRouteImport } from './routes/api/public/outbound-ip'
+import { Route as ApiMetaWebhookRouteImport } from './routes/api/meta/webhook'
+import { Route as ApiSupportAttachmentMessageIdRouteImport } from './routes/api/support/attachment.$messageId'
 import { Route as ApiPublicJuwaWithdrawRouteImport } from './routes/api/public/juwa/withdraw'
 import { Route as ApiPublicJuwaResetPasswordRouteImport } from './routes/api/public/juwa/reset-password'
 import { Route as ApiPublicJuwaRechargeRouteImport } from './routes/api/public/juwa/recharge'
@@ -128,6 +132,16 @@ const AuthenticatedPlatformsRoute = AuthenticatedPlatformsRouteImport.update({
   path: '/platforms',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPayoutsRoute = AuthenticatedPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPaymentsRoute = AuthenticatedPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPaymentMethodsRoute =
   AuthenticatedPaymentMethodsRouteImport.update({
     id: '/payment-methods',
@@ -191,6 +205,17 @@ const ApiPublicOutboundIpRoute = ApiPublicOutboundIpRouteImport.update({
   path: '/api/public/outbound-ip',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMetaWebhookRoute = ApiMetaWebhookRouteImport.update({
+  id: '/api/meta/webhook',
+  path: '/api/meta/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSupportAttachmentMessageIdRoute =
+  ApiSupportAttachmentMessageIdRouteImport.update({
+    id: '/api/support/attachment/$messageId',
+    path: '/api/support/attachment/$messageId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicJuwaWithdrawRoute = ApiPublicJuwaWithdrawRouteImport.update({
   id: '/api/public/juwa/withdraw',
   path: '/api/public/juwa/withdraw',
@@ -254,6 +279,8 @@ export interface FileRoutesByFullPath {
   '/deposits': typeof AuthenticatedDepositsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/payment-methods': typeof AuthenticatedPaymentMethodsRoute
+  '/payments': typeof AuthenticatedPaymentsRoute
+  '/payouts': typeof AuthenticatedPayoutsRoute
   '/platforms': typeof AuthenticatedPlatformsRoute
   '/players': typeof AuthenticatedPlayersRoute
   '/promotions': typeof AuthenticatedPromotionsRoute
@@ -267,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
   '/wallet-tools': typeof AuthenticatedWalletToolsRoute
+  '/api/meta/webhook': typeof ApiMetaWebhookRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
@@ -276,6 +304,7 @@ export interface FileRoutesByFullPath {
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/support/attachment/$messageId': typeof ApiSupportAttachmentMessageIdRoute
   '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRoutesByTo {
@@ -292,6 +321,8 @@ export interface FileRoutesByTo {
   '/deposits': typeof AuthenticatedDepositsRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/payment-methods': typeof AuthenticatedPaymentMethodsRoute
+  '/payments': typeof AuthenticatedPaymentsRoute
+  '/payouts': typeof AuthenticatedPayoutsRoute
   '/platforms': typeof AuthenticatedPlatformsRoute
   '/players': typeof AuthenticatedPlayersRoute
   '/promotions': typeof AuthenticatedPromotionsRoute
@@ -305,6 +336,7 @@ export interface FileRoutesByTo {
   '/transactions': typeof AuthenticatedTransactionsRoute
   '/vip': typeof AuthenticatedVipRoute
   '/wallet-tools': typeof AuthenticatedWalletToolsRoute
+  '/api/meta/webhook': typeof ApiMetaWebhookRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
@@ -314,6 +346,7 @@ export interface FileRoutesByTo {
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/support/attachment/$messageId': typeof ApiSupportAttachmentMessageIdRoute
   '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRoutesById {
@@ -332,6 +365,8 @@ export interface FileRoutesById {
   '/_authenticated/deposits': typeof AuthenticatedDepositsRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/payment-methods': typeof AuthenticatedPaymentMethodsRoute
+  '/_authenticated/payments': typeof AuthenticatedPaymentsRoute
+  '/_authenticated/payouts': typeof AuthenticatedPayoutsRoute
   '/_authenticated/platforms': typeof AuthenticatedPlatformsRoute
   '/_authenticated/players': typeof AuthenticatedPlayersRoute
   '/_authenticated/promotions': typeof AuthenticatedPromotionsRoute
@@ -345,6 +380,7 @@ export interface FileRoutesById {
   '/_authenticated/transactions': typeof AuthenticatedTransactionsRoute
   '/_authenticated/vip': typeof AuthenticatedVipRoute
   '/_authenticated/wallet-tools': typeof AuthenticatedWalletToolsRoute
+  '/api/meta/webhook': typeof ApiMetaWebhookRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
@@ -354,6 +390,7 @@ export interface FileRoutesById {
   '/api/public/juwa/recharge': typeof ApiPublicJuwaRechargeRoute
   '/api/public/juwa/reset-password': typeof ApiPublicJuwaResetPasswordRoute
   '/api/public/juwa/withdraw': typeof ApiPublicJuwaWithdrawRoute
+  '/api/support/attachment/$messageId': typeof ApiSupportAttachmentMessageIdRoute
   '/api/public/chat/ticket/$id/messages': typeof ApiPublicChatTicketIdMessagesRoute
 }
 export interface FileRouteTypes {
@@ -372,6 +409,8 @@ export interface FileRouteTypes {
     | '/deposits'
     | '/notifications'
     | '/payment-methods'
+    | '/payments'
+    | '/payouts'
     | '/platforms'
     | '/players'
     | '/promotions'
@@ -385,6 +424,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/vip'
     | '/wallet-tools'
+    | '/api/meta/webhook'
     | '/api/public/outbound-ip'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
@@ -394,6 +434,7 @@ export interface FileRouteTypes {
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/support/attachment/$messageId'
     | '/api/public/chat/ticket/$id/messages'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -410,6 +451,8 @@ export interface FileRouteTypes {
     | '/deposits'
     | '/notifications'
     | '/payment-methods'
+    | '/payments'
+    | '/payouts'
     | '/platforms'
     | '/players'
     | '/promotions'
@@ -423,6 +466,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/vip'
     | '/wallet-tools'
+    | '/api/meta/webhook'
     | '/api/public/outbound-ip'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
@@ -432,6 +476,7 @@ export interface FileRouteTypes {
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/support/attachment/$messageId'
     | '/api/public/chat/ticket/$id/messages'
   id:
     | '__root__'
@@ -449,6 +494,8 @@ export interface FileRouteTypes {
     | '/_authenticated/deposits'
     | '/_authenticated/notifications'
     | '/_authenticated/payment-methods'
+    | '/_authenticated/payments'
+    | '/_authenticated/payouts'
     | '/_authenticated/platforms'
     | '/_authenticated/players'
     | '/_authenticated/promotions'
@@ -462,6 +509,7 @@ export interface FileRouteTypes {
     | '/_authenticated/transactions'
     | '/_authenticated/vip'
     | '/_authenticated/wallet-tools'
+    | '/api/meta/webhook'
     | '/api/public/outbound-ip'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
@@ -471,6 +519,7 @@ export interface FileRouteTypes {
     | '/api/public/juwa/recharge'
     | '/api/public/juwa/reset-password'
     | '/api/public/juwa/withdraw'
+    | '/api/support/attachment/$messageId'
     | '/api/public/chat/ticket/$id/messages'
   fileRoutesById: FileRoutesById
 }
@@ -478,6 +527,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiMetaWebhookRoute: typeof ApiMetaWebhookRoute
   ApiPublicOutboundIpRoute: typeof ApiPublicOutboundIpRoute
   ApiPublicChatConfigRoute: typeof ApiPublicChatConfigRoute
   ApiPublicChatMessageRoute: typeof ApiPublicChatMessageRoute
@@ -487,6 +537,7 @@ export interface RootRouteChildren {
   ApiPublicJuwaRechargeRoute: typeof ApiPublicJuwaRechargeRoute
   ApiPublicJuwaResetPasswordRoute: typeof ApiPublicJuwaResetPasswordRoute
   ApiPublicJuwaWithdrawRoute: typeof ApiPublicJuwaWithdrawRoute
+  ApiSupportAttachmentMessageIdRoute: typeof ApiSupportAttachmentMessageIdRoute
   ApiPublicChatTicketIdMessagesRoute: typeof ApiPublicChatTicketIdMessagesRoute
 }
 
@@ -604,6 +655,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlatformsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/payouts': {
+      id: '/_authenticated/payouts'
+      path: '/payouts'
+      fullPath: '/payouts'
+      preLoaderRoute: typeof AuthenticatedPayoutsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/payments': {
+      id: '/_authenticated/payments'
+      path: '/payments'
+      fullPath: '/payments'
+      preLoaderRoute: typeof AuthenticatedPaymentsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/payment-methods': {
       id: '/_authenticated/payment-methods'
       path: '/payment-methods'
@@ -688,6 +753,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOutboundIpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/meta/webhook': {
+      id: '/api/meta/webhook'
+      path: '/api/meta/webhook'
+      fullPath: '/api/meta/webhook'
+      preLoaderRoute: typeof ApiMetaWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/support/attachment/$messageId': {
+      id: '/api/support/attachment/$messageId'
+      path: '/api/support/attachment/$messageId'
+      fullPath: '/api/support/attachment/$messageId'
+      preLoaderRoute: typeof ApiSupportAttachmentMessageIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/juwa/withdraw': {
       id: '/api/public/juwa/withdraw'
       path: '/api/public/juwa/withdraw'
@@ -766,6 +845,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDepositsRoute: typeof AuthenticatedDepositsRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedPaymentMethodsRoute: typeof AuthenticatedPaymentMethodsRoute
+  AuthenticatedPaymentsRoute: typeof AuthenticatedPaymentsRoute
+  AuthenticatedPayoutsRoute: typeof AuthenticatedPayoutsRoute
   AuthenticatedPlatformsRoute: typeof AuthenticatedPlatformsRoute
   AuthenticatedPlayersRoute: typeof AuthenticatedPlayersRoute
   AuthenticatedPromotionsRoute: typeof AuthenticatedPromotionsRoute
@@ -793,6 +874,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDepositsRoute: AuthenticatedDepositsRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedPaymentMethodsRoute: AuthenticatedPaymentMethodsRoute,
+  AuthenticatedPaymentsRoute: AuthenticatedPaymentsRoute,
+  AuthenticatedPayoutsRoute: AuthenticatedPayoutsRoute,
   AuthenticatedPlatformsRoute: AuthenticatedPlatformsRoute,
   AuthenticatedPlayersRoute: AuthenticatedPlayersRoute,
   AuthenticatedPromotionsRoute: AuthenticatedPromotionsRoute,
@@ -815,6 +898,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiMetaWebhookRoute: ApiMetaWebhookRoute,
   ApiPublicOutboundIpRoute: ApiPublicOutboundIpRoute,
   ApiPublicChatConfigRoute: ApiPublicChatConfigRoute,
   ApiPublicChatMessageRoute: ApiPublicChatMessageRoute,
@@ -824,6 +908,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicJuwaRechargeRoute: ApiPublicJuwaRechargeRoute,
   ApiPublicJuwaResetPasswordRoute: ApiPublicJuwaResetPasswordRoute,
   ApiPublicJuwaWithdrawRoute: ApiPublicJuwaWithdrawRoute,
+  ApiSupportAttachmentMessageIdRoute: ApiSupportAttachmentMessageIdRoute,
   ApiPublicChatTicketIdMessagesRoute: ApiPublicChatTicketIdMessagesRoute,
 }
 export const routeTree = rootRouteImport

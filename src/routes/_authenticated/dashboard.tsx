@@ -19,8 +19,11 @@ function DashboardPage() {
   const { data, isLoading } = useQuery({ queryKey: ["dashboard"], queryFn: () => fetchDash() });
 
   const mut = useMutation({
-    mutationFn: (vars: { kind: "deposit" | "cashout"; id: string; decision: "approved" | "rejected" }) =>
-      decide({ data: vars }),
+    mutationFn: (vars: {
+      kind: "deposit" | "cashout";
+      id: string;
+      decision: "approved" | "rejected";
+    }) => decide({ data: vars }),
     onSuccess: (_d, v) => {
       toast.success(`${v.kind === "deposit" ? "Deposit" : "Cashout"} ${v.decision}`);
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -33,10 +36,34 @@ function DashboardPage() {
   }
 
   const kpis = [
-    { label: "Pending Loads", value: data.kpis.pendingDepositCount, sub: fmtUSD(data.kpis.pendingDepositTotal), icon: ArrowDownToLine, tone: "text-warning" },
-    { label: "Pending Cashouts", value: data.kpis.pendingCashoutCount, sub: fmtUSD(data.kpis.pendingCashoutTotal), icon: ArrowUpFromLine, tone: "text-primary" },
-    { label: "Today's Volume", value: fmtUSD(data.kpis.todayVolume), sub: "Wallet movement", icon: TrendingUp, tone: "text-success" },
-    { label: "Active Players", value: data.kpis.activePlayers.toLocaleString(), sub: "Status: active", icon: Users, tone: "text-foreground" },
+    {
+      label: "Pending Loads",
+      value: data.kpis.pendingDepositCount,
+      sub: fmtUSD(data.kpis.pendingDepositTotal),
+      icon: ArrowDownToLine,
+      tone: "text-warning",
+    },
+    {
+      label: "Pending Cashouts",
+      value: data.kpis.pendingCashoutCount,
+      sub: fmtUSD(data.kpis.pendingCashoutTotal),
+      icon: ArrowUpFromLine,
+      tone: "text-primary",
+    },
+    {
+      label: "Today's Volume",
+      value: fmtUSD(data.kpis.todayVolume),
+      sub: "Wallet movement",
+      icon: TrendingUp,
+      tone: "text-success",
+    },
+    {
+      label: "Active Players",
+      value: data.kpis.activePlayers.toLocaleString(),
+      sub: "Status: active",
+      icon: Users,
+      tone: "text-foreground",
+    },
   ];
 
   return (
@@ -52,7 +79,9 @@ function DashboardPage() {
           return (
             <div key={k.label} className="bg-surface border border-border rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{k.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {k.label}
+                </span>
                 <Icon className={`size-4 ${k.tone}`} />
               </div>
               <div className="text-2xl font-mono font-semibold">{k.value}</div>
@@ -68,8 +97,6 @@ function DashboardPage() {
             title="Pending Deposits"
             kind="deposit"
             rows={data.pendingDeposits}
-            onDecide={(id, decision) => mut.mutate({ kind: "deposit", id, decision })}
-            pending={mut.isPending}
           />
           <QueueCard
             title="Pending Cashouts"
@@ -92,11 +119,15 @@ function DashboardPage() {
                 <span className="size-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div>
-                    <span className="font-medium">{a.staff?.full_name || a.staff?.email || "System"}</span>{" "}
+                    <span className="font-medium">
+                      {a.staff?.full_name || a.staff?.email || "System"}
+                    </span>{" "}
                     <span className="text-muted-foreground">·</span>{" "}
                     <span className="font-mono text-[11px]">{a.action}</span>
                   </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">{fmtRelative(a.created_at)}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {fmtRelative(a.created_at)}
+                  </div>
                 </div>
               </li>
             ))}
@@ -125,8 +156,8 @@ function QueueCard({
   title: string;
   kind: "deposit" | "cashout";
   rows: Row[];
-  onDecide: (id: string, decision: "approved" | "rejected") => void;
-  pending: boolean;
+  onDecide?: (id: string, decision: "approved" | "rejected") => void;
+  pending?: boolean;
 }) {
   return (
     <div className="bg-surface border border-border rounded-xl">
@@ -144,7 +175,9 @@ function QueueCard({
                 <div className="text-sm font-medium truncate">
                   {r.player?.username ?? "—"}
                   {r.player?.full_name && (
-                    <span className="text-muted-foreground font-normal text-xs ml-1.5">({r.player.full_name})</span>
+                    <span className="text-muted-foreground font-normal text-xs ml-1.5">
+                      ({r.player.full_name})
+                    </span>
                   )}
                 </div>
                 <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
@@ -153,14 +186,26 @@ function QueueCard({
               </div>
               <div className="font-mono text-sm tabular-nums">{fmtUSD(r.amount as number)}</div>
               <StatusBadge status={r.status} />
-              <div className="flex gap-1.5">
-                <Button size="sm" variant="ghost" disabled={pending} onClick={() => onDecide(r.id, "rejected")}>
-                  Reject
-                </Button>
-                <Button size="sm" disabled={pending} onClick={() => onDecide(r.id, "approved")} className="shadow-[var(--shadow-glow)]">
-                  Approve
-                </Button>
-              </div>
+              {onDecide && (
+                <div className="flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => onDecide(r.id, "rejected")}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => onDecide(r.id, "approved")}
+                    className="shadow-[var(--shadow-glow)]"
+                  >
+                    Approve
+                  </Button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

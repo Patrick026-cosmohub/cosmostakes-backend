@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Palette } from "lucide-react";
 
@@ -47,7 +53,10 @@ function ThemePage() {
           widgets: form!.widgets ?? {},
         },
       }),
-    onSuccess: () => { toast.success("Theme saved"); qc.invalidateQueries({ queryKey: ["site-theme"] }); },
+    onSuccess: () => {
+      toast.success("Theme saved");
+      qc.invalidateQueries({ queryKey: ["site-theme"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -56,8 +65,12 @@ function ThemePage() {
   return (
     <div className="p-4 lg:p-6 space-y-5 max-w-3xl">
       <div>
-        <h1 className="text-xl font-semibold flex items-center gap-2"><Palette className="size-5 text-primary" /> Theme & Branding</h1>
-        <p className="text-xs text-muted-foreground">Player dashboard appearance — applies instantly.</p>
+        <h1 className="text-xl font-semibold flex items-center gap-2">
+          <Palette className="size-5 text-primary" /> Theme & Branding
+        </h1>
+        <p className="text-xs text-muted-foreground">
+          Player dashboard appearance — applies instantly.
+        </p>
       </div>
 
       <Card>
@@ -65,20 +78,58 @@ function ThemePage() {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Mode</Label>
-              <Select value={form.mode} onValueChange={(v) => setForm({ ...form, mode: v as "light" | "dark" })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={form.mode}
+                onValueChange={(v) => setForm({ ...form, mode: v as "light" | "dark" })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="dark">Dark</SelectItem>
                   <SelectItem value="light">Light</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Primary</Label><Input type="color" value={form.primary_color} onChange={(e) => setForm({ ...form, primary_color: e.target.value })} /></div>
-            <div><Label>Accent</Label><Input type="color" value={form.accent_color} onChange={(e) => setForm({ ...form, accent_color: e.target.value })} /></div>
+            <div>
+              <Label>Primary</Label>
+              <Input
+                type="color"
+                value={form.primary_color}
+                onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Accent</Label>
+              <Input
+                type="color"
+                value={form.accent_color}
+                onChange={(e) => setForm({ ...form, accent_color: e.target.value })}
+              />
+            </div>
           </div>
-          <div><Label>Logo URL</Label><Input value={form.logo_url ?? ""} onChange={(e) => setForm({ ...form, logo_url: e.target.value || null })} placeholder="https://..." /></div>
-          <div><Label>Banner image URL</Label><Input value={form.banner_image ?? ""} onChange={(e) => setForm({ ...form, banner_image: e.target.value || null })} /></div>
-          <div><Label>Background image URL</Label><Input value={form.background_image ?? ""} onChange={(e) => setForm({ ...form, background_image: e.target.value || null })} /></div>
+          <div>
+            <Label>Logo URL</Label>
+            <Input
+              value={form.logo_url ?? ""}
+              onChange={(e) => setForm({ ...form, logo_url: e.target.value || null })}
+              placeholder="https://..."
+            />
+          </div>
+          <div>
+            <Label>Banner image URL</Label>
+            <Input
+              value={form.banner_image ?? ""}
+              onChange={(e) => setForm({ ...form, banner_image: e.target.value || null })}
+            />
+          </div>
+          <div>
+            <Label>Background image URL</Label>
+            <Input
+              value={form.background_image ?? ""}
+              onChange={(e) => setForm({ ...form, background_image: e.target.value || null })}
+            />
+          </div>
 
           <div className="pt-3 border-t border-border">
             <Label className="mb-2 block">Preview</Label>
@@ -95,7 +146,9 @@ function ThemePage() {
             </div>
           </div>
 
-          <Button disabled={save.isPending} onClick={() => save.mutate()}>Save theme</Button>
+          <Button disabled={save.isPending} onClick={() => save.mutate()}>
+            Save theme
+          </Button>
         </CardContent>
       </Card>
     </div>

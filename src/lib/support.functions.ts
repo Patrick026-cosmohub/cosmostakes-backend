@@ -36,6 +36,19 @@ const TICKET_STATUSES = [
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
 const TabSchema = z.enum(["new", "waiting", "mine", "in_progress", "resolved", "closed", "all"]);
+const SourceSchema = z.enum(["all", "facebook", "website"]);
+
+function ticketSourceForUsername(username?: string | null) {
+  return parseFacebookUsername(username) ? "facebook" : "website";
+}
+
+function applyTicketSourceFilter(query: any, source: z.infer<typeof SourceSchema>) {
+  if (source === "facebook") return query.like("player_username", "fb:%");
+  if (source === "website") {
+    return query.or("player_username.is.null,player_username.not.like.fb:%");
+  }
+  return query;
+}
 
 function envTokenNameForPage(pageId: string) {
   return `META_PAGE_ACCESS_TOKEN_${pageId.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}`;
@@ -112,12 +125,22 @@ async function loadMessengerDetails(supabase: any, tickets: TicketLike[]) {
     if (page.page_id && page.page_name) pageNames.set(String(page.page_id), String(page.page_name));
   }
 
-  const { data: conversations } = await supabase
+  let conversations: any[] = [];
+  const conversationsResult = await supabase
     .from("meta_conversations" as never)
     .select("support_ticket_id,page_id,psid,user_name")
     .in("support_ticket_id", ticketIds);
+  if (conversationsResult.error?.code === "PGRST204") {
+    const fallbackResult = await supabase
+      .from("meta_conversations" as never)
+      .select("support_ticket_id,page_id,psid")
+      .in("support_ticket_id", ticketIds);
+    conversations = (fallbackResult.data ?? []) as any[];
+  } else {
+    conversations = (conversationsResult.data ?? []) as any[];
+  }
   const conversationsByTicket = new Map(
-    ((conversations ?? []) as any[]).map((row) => [String(row.support_ticket_id), row]),
+    conversations.map((row) => [String(row.support_ticket_id), row]),
   );
 
   for (const item of messengerTickets) {
@@ -144,12 +167,21 @@ export const listMessengerPages = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     assertSupportAccess(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
+    const extendedSelect =
+      "page_id,page_name,page_access_token,token_status,token_source,is_enabled,last_error,updated_at,connected_at,token_expires_at,token_checked_at,webhook_subscription_status,webhook_subscribed_fields,webhook_checked_at";
+    const baseSelect =
+      "page_id,page_name,page_access_token,token_status,token_source,is_enabled,last_error,updated_at";
+    let result = await supabaseAdmin
       .from("meta_pages" as never)
-      .select(
-        "page_id,page_name,page_access_token,token_status,token_source,is_enabled,last_error,updated_at,created_at",
-      )
+      .select(extendedSelect)
       .order("updated_at", { ascending: false });
+    if (result.error?.code === "PGRST204") {
+      result = await supabaseAdmin
+        .from("meta_pages" as never)
+        .select(baseSelect)
+        .order("updated_at", { ascending: false });
+    }
+    const { data, error } = result;
     if (error) throw new Error(error.message);
 
     return {
@@ -164,7 +196,17 @@ export const listMessengerPages = createServerFn({ method: "GET" })
         token_source: page.token_source ? String(page.token_source) : null,
         is_enabled: page.is_enabled !== false,
         last_error: page.last_error ? String(page.last_error) : null,
-        updated_at: String(page.updated_at || page.created_at || new Date().toISOString()),
+        connected_at: page.connected_at ? String(page.connected_at) : null,
+        token_expires_at: page.token_expires_at ? String(page.token_expires_at) : null,
+        token_checked_at: page.token_checked_at ? String(page.token_checked_at) : null,
+        webhook_subscription_status: page.webhook_subscription_status
+          ? String(page.webhook_subscription_status)
+          : "unknown",
+        webhook_subscribed_fields: Array.isArray(page.webhook_subscribed_fields)
+          ? page.webhook_subscribed_fields.map(String)
+          : [],
+        webhook_checked_at: page.webhook_checked_at ? String(page.webhook_checked_at) : null,
+        updated_at: String(page.updated_at || new Date().toISOString()),
       })),
     };
   });
@@ -369,8 +411,9 @@ async function sendMetaPageReplyIfNeeded(supabase: any, ticketId: string, body: 
 /** List tickets for a given tab, with optional search. */
 export const listTickets = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { tab: string; search?: string }) => ({
+  .inputValidator((d: { tab: string; search?: string; source?: string }) => ({
     tab: TabSchema.parse(d.tab),
+    source: SourceSchema.default("all").parse(d.source ?? "all"),
     search: d.search?.trim() || "",
   }))
   .handler(async ({ data, context }) => {
@@ -383,6 +426,7 @@ export const listTickets = createServerFn({ method: "GET" })
       )
       .order("last_message_at", { ascending: false })
       .limit(200);
+    q = applyTicketSourceFilter(q, data.source);
 
     switch (data.tab) {
       case "new":
@@ -446,6 +490,7 @@ export const listTickets = createServerFn({ method: "GET" })
         ...t,
         player_name: messenger?.userName ?? t.player_name,
         game_provider: messenger?.pageName ?? t.game_provider,
+        source: ticketSourceForUsername(t.player_username),
         messenger_page_id: messenger?.pageId ?? null,
         messenger_page_name: messenger?.pageName ?? null,
         messenger_user_name: messenger?.userName ?? null,
@@ -459,35 +504,40 @@ export const listTickets = createServerFn({ method: "GET" })
 /** Per-tab unread/open counts for the sidebar tabs. */
 export const ticketCounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d?: { source?: string }) => ({
+    source: SourceSchema.default("all").parse(d?.source ?? "all"),
+  }))
+  .handler(async ({ context, data }) => {
     assertSupportAccess(context);
     const { supabase, userId } = context;
+    const source = data.source;
+    const scoped = (query: any) => applyTicketSourceFilter(query, source);
     const [n, w, mine, ip, rs, cl] = await Promise.all([
-      supabase
+      scoped(supabase
         .from("support_tickets")
         .select("id", { count: "exact", head: true })
-        .eq("status", "new"),
-      supabase
+        .eq("status", "new")),
+      scoped(supabase
         .from("support_tickets")
         .select("id", { count: "exact", head: true })
-        .eq("status", "waiting"),
-      supabase
+        .eq("status", "waiting")),
+      scoped(supabase
         .from("support_tickets")
         .select("id", { count: "exact", head: true })
         .eq("assigned_staff_id", userId)
-        .in("status", ["assigned", "in_progress", "waiting"]),
-      supabase
+        .in("status", ["assigned", "in_progress", "waiting"])),
+      scoped(supabase
         .from("support_tickets")
         .select("id", { count: "exact", head: true })
-        .eq("status", "in_progress"),
-      supabase
+        .eq("status", "in_progress")),
+      scoped(supabase
         .from("support_tickets")
         .select("id", { count: "exact", head: true })
-        .eq("status", "resolved"),
-      supabase
+        .eq("status", "resolved")),
+      scoped(supabase
         .from("support_tickets")
         .select("id", { count: "exact", head: true })
-        .eq("status", "closed"),
+        .eq("status", "closed")),
     ]);
     return {
       new: n.count ?? 0,
@@ -528,6 +578,7 @@ export const getTicket = createServerFn({ method: "GET" })
       ...ticket,
       player_name: messenger?.userName ?? ticket.player_name,
       game_provider: messenger?.pageName ?? ticket.game_provider,
+      source: ticketSourceForUsername(ticket.player_username),
       messenger_page_id: messenger?.pageId ?? null,
       messenger_page_name: messenger?.pageName ?? null,
       messenger_user_name: messenger?.userName ?? null,

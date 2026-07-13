@@ -4,6 +4,7 @@ const PAGE_NAMES: Record<string, string> = {
   "108251995706398": "Maya midnight 2.0",
   "886760014512587": "Cosmo Angel Gaming",
   "304589982739389": "Cosmo Royale",
+  "111078998418501": "Cosmo Adriana Gaming",
   "101636812616119": "Ombre Gaming",
   "148199678368516": "Amiri gaming",
 };

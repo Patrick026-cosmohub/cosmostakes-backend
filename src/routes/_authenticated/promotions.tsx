@@ -10,8 +10,20 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Gift, Plus, Trash2, Pencil } from "lucide-react";
@@ -87,7 +99,9 @@ function PromotionsPage() {
           <h1 className="text-xl font-semibold flex items-center gap-2">
             <Gift className="size-5 text-primary" /> Promotions & Bonuses
           </h1>
-          <p className="text-xs text-muted-foreground">Welcome, referral, reload, cashback and seasonal bonuses.</p>
+          <p className="text-xs text-muted-foreground">
+            Welcome, referral, reload, cashback and seasonal bonuses.
+          </p>
         </div>
         <Button onClick={() => setEditing({ type: "welcome", is_active: true })}>
           <Plus className="size-4 mr-1" /> New bonus
@@ -104,20 +118,45 @@ function PromotionsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs space-y-1.5">
-              <div className="flex justify-between"><span className="text-muted-foreground">Bonus %</span><span className="font-mono">{b.percentage}%</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Min deposit</span><span className="font-mono">{fmtUSD(b.min_deposit)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Max bonus</span><span className="font-mono">{fmtUSD(b.max_bonus)}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Platform</span><span>{b.game?.name ?? "All"}</span></div>
-              {b.expires_at && <div className="flex justify-between"><span className="text-muted-foreground">Expires</span><span>{new Date(b.expires_at).toLocaleDateString()}</span></div>}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Bonus %</span>
+                <span className="font-mono">{b.percentage}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Min deposit</span>
+                <span className="font-mono">{fmtUSD(b.min_deposit)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Max bonus</span>
+                <span className="font-mono">{fmtUSD(b.max_bonus)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Platform</span>
+                <span>{b.game?.name ?? "All"}</span>
+              </div>
+              {b.expires_at && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Expires</span>
+                  <span>{new Date(b.expires_at).toLocaleDateString()}</span>
+                </div>
+              )}
               <div className="flex gap-1.5 pt-2">
-                <Button size="sm" variant="outline" onClick={() => setEditing(b)}><Pencil className="size-3" /></Button>
-                <Button size="sm" variant="ghost" onClick={() => remove.mutate(b.id)}><Trash2 className="size-3 text-destructive" /></Button>
+                <Button size="sm" variant="outline" onClick={() => setEditing(b)}>
+                  <Pencil className="size-3" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => remove.mutate(b.id)}>
+                  <Trash2 className="size-3 text-destructive" />
+                </Button>
               </div>
             </CardContent>
           </Card>
         ))}
         {rows.length === 0 && !q.isLoading && (
-          <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No bonuses yet.</CardContent></Card>
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              No bonuses yet.
+            </CardContent>
+          </Card>
         )}
       </div>
 
@@ -128,40 +167,121 @@ function PromotionsPage() {
           </DialogHeader>
           {editing && (
             <div className="space-y-3">
-              <div><Label>Name</Label><Input value={editing.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
+              <div>
+                <Label>Name</Label>
+                <Input
+                  value={editing.name ?? ""}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Type</Label>
-                  <Select value={editing.type} onValueChange={(v) => setEditing({ ...editing, type: v as Bonus["type"] })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={editing.type}
+                    onValueChange={(v) => setEditing({ ...editing, type: v as Bonus["type"] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
-                      {["welcome", "referral", "reload", "cashback", "seasonal"].map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      {["welcome", "referral", "reload", "cashback", "seasonal"].map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label>Platform</Label>
-                  <Select value={editing.game_id ?? "__all__"} onValueChange={(v) => setEditing({ ...editing, game_id: v === "__all__" ? null : v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={editing.game_id ?? "__all__"}
+                    onValueChange={(v) =>
+                      setEditing({ ...editing, game_id: v === "__all__" ? null : v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all__">All platforms</SelectItem>
-                      {allGames.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                      {allGames.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div><Label>Percentage</Label><Input type="number" value={editing.percentage ?? 0} onChange={(e) => setEditing({ ...editing, percentage: Number(e.target.value) })} /></div>
-                <div><Label>Min deposit</Label><Input type="number" value={editing.min_deposit ?? 0} onChange={(e) => setEditing({ ...editing, min_deposit: Number(e.target.value) })} /></div>
-                <div><Label>Max bonus</Label><Input type="number" value={editing.max_bonus ?? 0} onChange={(e) => setEditing({ ...editing, max_bonus: Number(e.target.value) })} /></div>
+                <div>
+                  <Label>Percentage</Label>
+                  <Input
+                    type="number"
+                    value={editing.percentage ?? 0}
+                    onChange={(e) => setEditing({ ...editing, percentage: Number(e.target.value) })}
+                  />
+                </div>
+                <div>
+                  <Label>Min deposit</Label>
+                  <Input
+                    type="number"
+                    value={editing.min_deposit ?? 0}
+                    onChange={(e) =>
+                      setEditing({ ...editing, min_deposit: Number(e.target.value) })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Max bonus</Label>
+                  <Input
+                    type="number"
+                    value={editing.max_bonus ?? 0}
+                    onChange={(e) => setEditing({ ...editing, max_bonus: Number(e.target.value) })}
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Starts at</Label><Input type="datetime-local" value={editing.starts_at?.slice(0, 16) ?? ""} onChange={(e) => setEditing({ ...editing, starts_at: e.target.value || null })} /></div>
-                <div><Label>Expires at</Label><Input type="datetime-local" value={editing.expires_at?.slice(0, 16) ?? ""} onChange={(e) => setEditing({ ...editing, expires_at: e.target.value || null })} /></div>
+                <div>
+                  <Label>Starts at</Label>
+                  <Input
+                    type="datetime-local"
+                    value={editing.starts_at?.slice(0, 16) ?? ""}
+                    onChange={(e) => setEditing({ ...editing, starts_at: e.target.value || null })}
+                  />
+                </div>
+                <div>
+                  <Label>Expires at</Label>
+                  <Input
+                    type="datetime-local"
+                    value={editing.expires_at?.slice(0, 16) ?? ""}
+                    onChange={(e) => setEditing({ ...editing, expires_at: e.target.value || null })}
+                  />
+                </div>
               </div>
-              <div><Label>Description</Label><Textarea value={editing.description ?? ""} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></div>
-              <div className="flex items-center gap-2"><Switch checked={editing.is_active ?? true} onCheckedChange={(v) => setEditing({ ...editing, is_active: v })} /><Label>Active</Label></div>
-              <Button className="w-full" disabled={save.isPending} onClick={() => save.mutate(editing)}>Save</Button>
+              <div>
+                <Label>Description</Label>
+                <Textarea
+                  value={editing.description ?? ""}
+                  onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={editing.is_active ?? true}
+                  onCheckedChange={(v) => setEditing({ ...editing, is_active: v })}
+                />
+                <Label>Active</Label>
+              </div>
+              <Button
+                className="w-full"
+                disabled={save.isPending}
+                onClick={() => save.mutate(editing)}
+              >
+                Save
+              </Button>
             </div>
           )}
         </DialogContent>

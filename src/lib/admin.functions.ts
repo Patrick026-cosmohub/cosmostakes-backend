@@ -1,17 +1,35 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Role } from "@/lib/format";
+import { hasPermission, type Permission } from "@/lib/permissions";
 import { callRefujTransfer, isSpecialGameProvider, readRefujGameList } from "./refuj.server";
+
+type AdminContext = { roles?: string[]; supabase: any; userId: string };
+
+function assertPermission(ctx: AdminContext, permission: Permission) {
+  const roles = (ctx.roles ?? []) as Role[];
+  if (!hasPermission(roles, permission)) {
+    throw new Error(`Forbidden: ${permission} required`);
+  }
+}
 
 /** Returns roles + profile for the current signed-in staff member. */
 export const getMe = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, staffProfile, roles: contextRoles } = context;
+    if (staffProfile && Array.isArray(contextRoles)) {
+      return {
+        userId,
+        profile: staffProfile,
+        roles: contextRoles,
+      };
+    }
     const [{ data: profile }, { data: roles }] = await Promise.all([
       supabase
         .from("staff_profiles")
-        .select("id,email,full_name,is_active")
+        .select("id,email,username,full_name,is_active")
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
@@ -27,6 +45,7 @@ export const getMe = createServerFn({ method: "GET" })
 export const getDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    assertPermission(context, "dashboard.view");
     const { supabase } = context;
     const sinceToday = new Date();
     sinceToday.setHours(0, 0, 0, 0);
@@ -117,6 +136,7 @@ export const searchPlayers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ q: z.string().max(120).default("") }).parse(d))
   .handler(async ({ context, data }) => {
+    assertPermission(context, "players.view");
     const { supabase } = context;
     let query = supabase
       .from("players")
@@ -139,6 +159,7 @@ export const getPlayer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    assertPermission(context, "players.view");
     const { supabase } = context;
     const [{ data: player }, { data: ledger }] = await Promise.all([
       supabase.from("players").select("*").eq("id", data.id).maybeSingle(),
@@ -161,6 +182,7 @@ export const listPlayersSegmented = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ q: z.string().max(120).default("") }).parse(d))
   .handler(async ({ context, data }) => {
+    assertPermission(context, "players.view");
     const { supabase } = context;
     let query = supabase
       .from("players")
@@ -205,6 +227,7 @@ export const listPlayersSegmented = createServerFn({ method: "GET" })
 export const listPaymentMethodStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    assertPermission(context, "payment_methods.view");
     const { supabase } = context;
     const [{ data: methods }, { data: deposits }, { data: cashouts }] = await Promise.all([
       supabase.from("payment_methods").select("id,name,kind,is_active").order("name"),
@@ -294,6 +317,7 @@ export const listPaymentMethodStats = createServerFn({ method: "GET" })
 export const getFinancialReports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    assertPermission(context, "reports.view");
     const { supabase } = context;
     // Pull all settled ledger rows (deposits/cashouts only) joined with player's game.
     const { data: ledger, error } = await supabase
@@ -477,6 +501,7 @@ export const createPlayer = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    assertPermission(context, "players.manage");
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
       .from("players")
@@ -514,6 +539,7 @@ export const listRequests = createServerFn({ method: "GET" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    assertPermission(context, data.kind === "deposit" ? "deposits.view" : "cashouts.view");
     const { supabase } = context;
     const table = data.kind === "deposit" ? "deposit_requests" : "cashout_requests";
     const selectCols =
@@ -585,6 +611,7 @@ export const decideRequest = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    assertPermission(context, data.kind === "deposit" ? "deposits.manage" : "cashouts.manage");
     const { supabase, userId } = context;
     const table = data.kind === "deposit" ? "deposit_requests" : "cashout_requests";
 
@@ -664,14 +691,17 @@ export const decideRequest = createServerFn({ method: "POST" })
       }
     }
 
-    const { error: finalizeErr } = await supabase.rpc("finalize_finance_request" as never, {
-      p_kind: data.kind,
-      p_request_id: data.id,
-      p_decision: data.decision,
-      p_note: data.note ?? null,
-      p_refuj_note: refujNote,
-      p_staff_id: userId,
-    } as never);
+    const { error: finalizeErr } = await supabase.rpc(
+      "finalize_finance_request" as never,
+      {
+        p_kind: data.kind,
+        p_request_id: data.id,
+        p_decision: data.decision,
+        p_note: data.note ?? null,
+        p_refuj_note: refujNote,
+        p_staff_id: userId,
+      } as never,
+    );
     if (finalizeErr) throw new Error(finalizeErr.message);
 
     await supabase.from("audit_logs").insert({
@@ -703,6 +733,7 @@ export const adjustWallet = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    assertPermission(context, "wallet_tools.use");
     const { supabase, userId } = context;
     // Finance check
     const { data: canFinance } = await supabase.rpc("can_handle_finance", { _user_id: userId });
@@ -743,6 +774,7 @@ export const searchPlayerWallets = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ q: z.string().max(120).default("") }).parse(d))
   .handler(async ({ context, data }) => {
+    assertPermission(context, "wallet_tools.use");
     const { supabase, userId } = context;
     const { data: canFinance } = await supabase.rpc("can_handle_finance", { _user_id: userId });
     if (!canFinance) throw new Error("Forbidden: finance role required");
@@ -780,6 +812,7 @@ export const adjustPlayerDashboardWallet = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    assertPermission(context, "wallet_tools.use");
     const { supabase, userId } = context;
     const { data: canFinance } = await supabase.rpc("can_handle_finance", { _user_id: userId });
     if (!canFinance) throw new Error("Forbidden: finance role required");
@@ -852,6 +885,7 @@ export const listAuditLogs = createServerFn({ method: "GET" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    assertPermission(context, "audit.view");
     const { supabase } = context;
     let q = supabase
       .from("audit_logs")
@@ -880,11 +914,12 @@ export const listAuditLogs = createServerFn({ method: "GET" })
 export const listStaff = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    assertPermission(context, "staff.manage");
     const { supabase } = context;
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       supabase
         .from("staff_profiles")
-        .select("id,email,username,full_name,is_active,created_at")
+        .select("id,email,username,full_name,is_active,created_at,password_hash")
         .order("created_at"),
       supabase.from("user_roles").select("user_id,role"),
     ]);
@@ -894,7 +929,15 @@ export const listStaff = createServerFn({ method: "GET" })
       list.push(r.role as string);
       byUser.set(r.user_id, list);
     });
-    return (profiles ?? []).map((p) => ({ ...p, roles: byUser.get(p.id) ?? [] }));
+    return (profiles ?? [])
+      .filter((p) => Boolean((p as { password_hash?: string | null }).password_hash))
+      .map((p) => {
+        const { password_hash: _passwordHash, ...profile } = p as typeof p & {
+          password_hash?: string | null;
+        };
+        return { ...profile, roles: byUser.get(profile.id) ?? [] };
+      })
+      .filter((p) => p.roles.length > 0);
   });
 
 export const setStaffRoles = createServerFn({ method: "POST" })
@@ -903,7 +946,10 @@ export const setStaffRoles = createServerFn({ method: "POST" })
     z
       .object({
         user_id: z.string().uuid(),
-        roles: z.array(z.enum(["super_admin", "admin", "finance_agent", "support_agent"])).max(4),
+        roles: z
+          .array(z.enum(["admin", "finance_agent", "support_agent"]))
+          .min(1)
+          .max(3),
       })
       .parse(d),
   )
@@ -914,8 +960,12 @@ export const setStaffRoles = createServerFn({ method: "POST" })
       _role: "super_admin",
     });
     if (!isSuper) throw new Error("Forbidden: super admin only");
-    if (data.user_id === userId && !data.roles.includes("super_admin")) {
-      throw new Error("Cannot remove your own super_admin role");
+    const { data: targetRoles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user_id);
+    if ((targetRoles ?? []).some((r) => r.role === "super_admin")) {
+      throw new Error("Super admin roles are not managed from Staff");
     }
     // Replace role set
     await supabase.from("user_roles").delete().eq("user_id", data.user_id);
@@ -946,13 +996,13 @@ export const createStaff = createServerFn({ method: "POST" })
           .min(2)
           .max(40)
           .regex(/^[a-zA-Z0-9_.-]+$/, "Username may use letters, numbers, _ . -"),
-        email: z.string().email(),
+        email: z.string().email().optional().or(z.literal("")),
         password: z.string().min(8).max(128),
         full_name: z.string().min(1).max(120),
         roles: z
-          .array(z.enum(["super_admin", "admin", "finance_agent", "support_agent"]))
+          .array(z.enum(["admin", "finance_agent", "support_agent"]))
           .min(1)
-          .max(4),
+          .max(3),
       })
       .parse(d),
   )
@@ -965,6 +1015,8 @@ export const createStaff = createServerFn({ method: "POST" })
     if (!isSuper) throw new Error("Forbidden: super admin only");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { hashStaffPassword } = await import("./staff-auth.server");
+    const { randomUUID } = await import("node:crypto");
     const { data: clash } = await supabaseAdmin
       .from("staff_profiles")
       .select("id")
@@ -972,36 +1024,42 @@ export const createStaff = createServerFn({ method: "POST" })
       .maybeSingle();
     if (clash) throw new Error("Username already taken");
 
-    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.password,
-      email_confirm: true,
-      user_metadata: { full_name: data.full_name },
-    });
-    if (createErr || !created.user) throw new Error(createErr?.message ?? "Failed to create user");
-    const newId = created.user.id;
+    const email = data.email || `${data.username}@staff.local`;
+    const { data: emailClash } = await supabaseAdmin
+      .from("staff_profiles")
+      .select("id")
+      .ilike("email", email)
+      .maybeSingle();
+    if (emailClash) throw new Error("Email already belongs to a staff account");
 
-    // Ensure profile exists (trigger should handle it, but upsert to be safe).
-    await supabaseAdmin.from("staff_profiles").upsert({
+    const { loadSecurityPolicy, validatePasswordAgainstPolicy } =
+      await import("./security-policy.server");
+    const policy = await loadSecurityPolicy(supabaseAdmin);
+    validatePasswordAgainstPolicy(data.password, policy);
+
+    const newId = randomUUID();
+    const { error: profileError } = await supabaseAdmin.from("staff_profiles").insert({
       id: newId,
-      email: data.email,
+      email,
       username: data.username,
       full_name: data.full_name,
       is_active: true,
-    });
+      password_hash: await hashStaffPassword(data.password),
+      password_updated_at: new Date().toISOString(),
+    } as never);
+    if (profileError) throw new Error(profileError.message);
 
-    // Replace any auto-assigned roles with the chosen set.
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
-    await supabaseAdmin
+    const { error: rolesError } = await supabaseAdmin
       .from("user_roles")
       .insert(data.roles.map((role) => ({ user_id: newId, role })));
+    if (rolesError) throw new Error(rolesError.message);
 
     await supabase.from("audit_logs").insert({
       staff_id: userId,
       action: "staff.create",
       entity_type: "staff",
       entity_id: newId,
-      metadata: { email: data.email, username: data.username, roles: data.roles },
+      metadata: { email, username: data.username, roles: data.roles },
     });
     return { ok: true, id: newId };
   });
@@ -1018,6 +1076,13 @@ export const setStaffActive = createServerFn({ method: "POST" })
     });
     if (!isSuper) throw new Error("Forbidden: super admin only");
     if (data.user_id === userId) throw new Error("Cannot deactivate your own account");
+    const { data: targetRoles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user_id);
+    if ((targetRoles ?? []).some((r) => r.role === "super_admin")) {
+      throw new Error("Super admin accounts are not managed from Staff");
+    }
     await supabase
       .from("staff_profiles")
       .update({ is_active: data.is_active })
@@ -1025,6 +1090,55 @@ export const setStaffActive = createServerFn({ method: "POST" })
     await supabase.from("audit_logs").insert({
       staff_id: userId,
       action: data.is_active ? "staff.activate" : "staff.deactivate",
+      entity_type: "staff",
+      entity_id: data.user_id,
+    });
+    return { ok: true };
+  });
+
+/** Super-admin: remove a manually-created staff account. */
+export const deleteStaff = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ user_id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isSuper } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "super_admin",
+    });
+    if (!isSuper) throw new Error("Forbidden: super admin only");
+    if (data.user_id === userId) throw new Error("Cannot remove your own account");
+
+    const { data: targetRoles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user_id);
+    if ((targetRoles ?? []).some((r) => r.role === "super_admin")) {
+      throw new Error("Super admin accounts are not managed from Staff");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("support_tickets" as never)
+      .update({ assigned_staff_id: null } as never)
+      .eq("assigned_staff_id", data.user_id);
+    await supabaseAdmin
+      .from("admin_sessions" as never)
+      .delete()
+      .eq("staff_id", data.user_id);
+    await supabaseAdmin
+      .from("user_roles" as never)
+      .delete()
+      .eq("user_id", data.user_id);
+    const { error } = await supabaseAdmin
+      .from("staff_profiles" as never)
+      .delete()
+      .eq("id", data.user_id);
+    if (error) throw new Error(error.message);
+
+    await supabase.from("audit_logs").insert({
+      staff_id: userId,
+      action: "staff.delete",
       entity_type: "staff",
       entity_id: data.user_id,
     });
@@ -1058,11 +1172,25 @@ export const updateStaff = createServerFn({ method: "POST" })
       _role: "super_admin",
     });
     if (!isSuper) throw new Error("Forbidden: super admin only");
+    const { data: targetRoles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user_id);
+    if ((targetRoles ?? []).some((r) => r.role === "super_admin")) {
+      throw new Error("Super admin accounts are not managed from Staff");
+    }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const profilePatch: { username?: string; full_name?: string; email?: string } = {};
+    const profilePatch: {
+      username?: string;
+      full_name?: string;
+      email?: string;
+      password_hash?: string;
+      password_updated_at?: string;
+      failed_login_attempts?: number;
+      locked_until?: string | null;
+    } = {};
     if (data.username !== undefined) {
-      const { data: clash } = await supabaseAdmin
+      const { data: clash } = await supabase
         .from("staff_profiles")
         .select("id")
         .ilike("username", data.username)
@@ -1073,20 +1201,23 @@ export const updateStaff = createServerFn({ method: "POST" })
     }
     if (data.full_name !== undefined) profilePatch.full_name = data.full_name;
     if (data.email !== undefined) profilePatch.email = data.email;
-
-    if (Object.keys(profilePatch).length) {
-      const { error } = await supabaseAdmin
-        .from("staff_profiles")
-        .update(profilePatch)
-        .eq("id", data.user_id);
-      if (error) throw new Error(error.message);
+    if (data.password !== undefined) {
+      const { hashStaffPassword } = await import("./staff-auth.server");
+      const { loadSecurityPolicy, validatePasswordAgainstPolicy } =
+        await import("./security-policy.server");
+      const policy = await loadSecurityPolicy(supabase);
+      validatePasswordAgainstPolicy(data.password, policy);
+      profilePatch.password_hash = await hashStaffPassword(data.password);
+      profilePatch.password_updated_at = new Date().toISOString();
+      profilePatch.failed_login_attempts = 0;
+      profilePatch.locked_until = null;
     }
 
-    const authPatch: { email?: string; password?: string } = {};
-    if (data.email) authPatch.email = data.email;
-    if (data.password) authPatch.password = data.password;
-    if (Object.keys(authPatch).length) {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, authPatch);
+    if (Object.keys(profilePatch).length) {
+      const { error } = await supabase
+        .from("staff_profiles")
+        .update(profilePatch as never)
+        .eq("id", data.user_id);
       if (error) throw new Error(error.message);
     }
 
@@ -1118,7 +1249,7 @@ export const getStaffDetail = createServerFn({ method: "GET" })
       await Promise.all([
         supabase
           .from("staff_profiles")
-          .select("id,email,username,full_name,is_active,created_at")
+          .select("id,email,username,full_name,is_active,created_at,password_hash")
           .eq("id", data.user_id)
           .maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", data.user_id),
@@ -1133,8 +1264,14 @@ export const getStaffDetail = createServerFn({ method: "GET" })
           .select("id", { count: "exact", head: true })
           .eq("staff_id", data.user_id),
       ]);
+    if (!profile || !(profile as { password_hash?: string | null }).password_hash) {
+      throw new Error("Staff account not found");
+    }
+    const { password_hash: _passwordHash, ...safeProfile } = profile as typeof profile & {
+      password_hash?: string | null;
+    };
     return {
-      profile,
+      profile: safeProfile,
       roles: (roles ?? []).map((r) => r.role as string),
       activity: activity ?? [],
       totalActions: actionCount ?? 0,
@@ -1144,6 +1281,7 @@ export const getStaffDetail = createServerFn({ method: "GET" })
 export const listPaymentMethods = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    assertPermission(context, "payment_methods.view");
     const { data } = await context.supabase.from("payment_methods").select("*").order("name");
     return data ?? [];
   });
@@ -1151,6 +1289,7 @@ export const listPaymentMethods = createServerFn({ method: "GET" })
 export const listGames = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    assertPermission(context, "platforms.view");
     const { data } = await context.supabase.from("games").select("*").order("name");
     return data ?? [];
   });
@@ -1230,6 +1369,7 @@ async function listDashboardGameRows(supabase: any) {
 export const getPlatformsOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    assertPermission(context, "platforms.view");
     const { supabase } = context;
     const [
       { data: games },
@@ -1374,6 +1514,7 @@ export const createRequest = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    assertPermission(context, data.kind === "deposit" ? "deposits.manage" : "cashouts.manage");
     const { supabase, userId } = context;
     const table = data.kind === "deposit" ? "deposit_requests" : "cashout_requests";
     const base = {

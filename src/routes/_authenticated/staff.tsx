@@ -9,6 +9,7 @@ import {
   setStaffActive,
   updateStaff,
   getStaffDetail,
+  deleteStaff,
 } from "@/lib/admin.functions";
 import { ROLE_LABEL, type Role, fmtRelative, fmtDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -24,13 +25,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Shield, UserCheck, UserX, Eye, Activity } from "lucide-react";
+import { Plus, Shield, UserCheck, UserX, Eye, Activity, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffPage,
 });
 
-const ALL_ROLES: Role[] = ["super_admin", "admin", "finance_agent", "support_agent"];
+const ALL_ROLES: Role[] = ["admin", "finance_agent", "support_agent"];
 
 type StaffRow = {
   id: string;
@@ -47,6 +48,7 @@ function StaffPage() {
   const createFn = useServerFn(createStaff);
   const updateRoles = useServerFn(setStaffRoles);
   const toggleActive = useServerFn(setStaffActive);
+  const removeStaff = useServerFn(deleteStaff);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({ queryKey: ["staff"], queryFn: () => fetchStaff() });
@@ -56,8 +58,13 @@ function StaffPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["staff"] });
 
   const createMut = useMutation({
-    mutationFn: (vars: { username: string; email: string; password: string; full_name: string; roles: Role[] }) =>
-      createFn({ data: vars }),
+    mutationFn: (vars: {
+      username: string;
+      email: string;
+      password: string;
+      full_name: string;
+      roles: Role[];
+    }) => createFn({ data: vars }),
     onSuccess: () => {
       toast.success("Staff account created");
       setAddOpen(false);
@@ -79,6 +86,15 @@ function StaffPage() {
     mutationFn: (vars: { user_id: string; is_active: boolean }) => toggleActive({ data: vars }),
     onSuccess: (_d, v) => {
       toast.success(v.is_active ? "Account activated" : "Account deactivated");
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (vars: { user_id: string }) => removeStaff({ data: vars }),
+    onSuccess: () => {
+      toast.success("Staff removed");
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -120,9 +136,13 @@ function StaffPage() {
             <StaffRowItem
               key={s.id}
               row={s as StaffRow}
-              busy={rolesMut.isPending || activeMut.isPending}
+              busy={rolesMut.isPending || activeMut.isPending || deleteMut.isPending}
               onSaveRoles={(roles) => rolesMut.mutate({ user_id: s.id, roles })}
               onToggleActive={() => activeMut.mutate({ user_id: s.id, is_active: !s.is_active })}
+              onRemove={() => {
+                if (!window.confirm("Remove this staff account?")) return;
+                deleteMut.mutate({ user_id: s.id });
+              }}
               onView={() => setDetailId(s.id)}
             />
           ))}
@@ -141,16 +161,19 @@ function StaffRowItem({
   busy,
   onSaveRoles,
   onToggleActive,
+  onRemove,
   onView,
 }: {
   row: StaffRow;
   busy: boolean;
   onSaveRoles: (roles: Role[]) => void;
   onToggleActive: () => void;
+  onRemove: () => void;
   onView: () => void;
 }) {
   const [selected, setSelected] = useState<Role[]>(row.roles as Role[]);
   const dirty = selected.slice().sort().join(",") !== row.roles.slice().sort().join(",");
+  const isSuperAdmin = row.roles.includes("super_admin");
 
   function toggle(r: Role) {
     setSelected((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
@@ -189,10 +212,15 @@ function StaffRowItem({
             </button>
           );
         })}
+        {isSuperAdmin && (
+          <span className="text-[10px] uppercase tracking-widest px-2 py-1 rounded border bg-primary/15 text-primary border-primary/30">
+            {ROLE_LABEL.super_admin}
+          </span>
+        )}
       </div>
       <div className="text-[11px] text-muted-foreground">{fmtRelative(row.created_at)}</div>
       <div className="flex gap-1.5 justify-end">
-        {dirty && (
+        {dirty && !isSuperAdmin && (
           <Button size="sm" disabled={busy} onClick={() => onSaveRoles(selected)}>
             <Shield className="size-3.5 mr-1" />
             Save
@@ -201,9 +229,16 @@ function StaffRowItem({
         <Button size="sm" variant="ghost" onClick={onView} title="View / edit">
           <Eye className="size-3.5" />
         </Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={onToggleActive}>
-          {row.is_active ? <UserX className="size-3.5" /> : <UserCheck className="size-3.5" />}
-        </Button>
+        {!isSuperAdmin && (
+          <>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={onToggleActive}>
+              {row.is_active ? <UserX className="size-3.5" /> : <UserCheck className="size-3.5" />}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={onRemove} title="Remove">
+              <Trash2 className="size-3.5" />
+            </Button>
+          </>
+        )}
       </div>
     </li>
   );
@@ -214,7 +249,13 @@ function AddStaffDialog({
   onSubmit,
 }: {
   pending: boolean;
-  onSubmit: (v: { username: string; email: string; password: string; full_name: string; roles: Role[] }) => void;
+  onSubmit: (v: {
+    username: string;
+    email: string;
+    password: string;
+    full_name: string;
+    roles: Role[];
+  }) => void;
 }) {
   const [roles, setRoles] = useState<Role[]>(["admin"]);
 
@@ -255,14 +296,21 @@ function AddStaffDialog({
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email (used to sign in)</Label>
-          <Input id="email" name="email" type="email" required />
+          <Label htmlFor="email">Email (optional contact)</Label>
+          <Input id="email" name="email" type="email" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="password">Temporary password</Label>
-          <Input id="password" name="password" type="text" minLength={8} required defaultValue={genPassword()} />
+          <Input
+            id="password"
+            name="password"
+            type="text"
+            minLength={8}
+            required
+            defaultValue={genPassword()}
+          />
           <p className="text-[10px] text-muted-foreground">
-            Share with the new staff member securely. They sign in at /auth with email + password.
+            Share with the new staff member securely. They sign in with username + password.
           </p>
         </div>
         <div className="space-y-2">
@@ -313,8 +361,12 @@ function StaffDetailDialog({ userId }: { userId: string }) {
   }, [data?.profile]);
 
   const mut = useMutation({
-    mutationFn: (vars: { username?: string; full_name?: string; email?: string; password?: string }) =>
-      updateFn({ data: { user_id: userId, ...vars } }),
+    mutationFn: (vars: {
+      username?: string;
+      full_name?: string;
+      email?: string;
+      password?: string;
+    }) => updateFn({ data: { user_id: userId, ...vars } }),
     onSuccess: () => {
       toast.success("Staff updated");
       qc.invalidateQueries({ queryKey: ["staff"] });
@@ -326,7 +378,8 @@ function StaffDetailDialog({ userId }: { userId: string }) {
 
   function handle(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const payload: { username?: string; full_name?: string; email?: string; password?: string } = {};
+    const payload: { username?: string; full_name?: string; email?: string; password?: string } =
+      {};
     const orig = data?.profile;
     if (orig) {
       if (form.username !== (orig.username ?? "")) payload.username = form.username;
@@ -391,7 +444,11 @@ function StaffDetailDialog({ userId }: { userId: string }) {
               />
             </div>
             <div className="flex gap-2">
-              <Button type="submit" disabled={mut.isPending} className="shadow-[var(--shadow-glow)]">
+              <Button
+                type="submit"
+                disabled={mut.isPending}
+                className="shadow-[var(--shadow-glow)]"
+              >
                 {mut.isPending ? "Saving…" : "Save changes"}
               </Button>
               <Button
@@ -410,7 +467,9 @@ function StaffDetailDialog({ userId }: { userId: string }) {
           <div className="border border-border rounded-lg bg-background/40 flex flex-col min-h-0">
             <div className="p-3 border-b border-border flex items-center justify-between">
               <span className="text-[10px] font-bold uppercase tracking-widest">Activity</span>
-              <span className="text-[10px] text-muted-foreground font-mono">{data.totalActions} total</span>
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {data.totalActions} total
+              </span>
             </div>
             <ul className="divide-y divide-border/50 max-h-[360px] overflow-y-auto">
               {data.activity.length === 0 && (

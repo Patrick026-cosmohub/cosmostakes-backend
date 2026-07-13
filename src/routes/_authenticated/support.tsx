@@ -66,6 +66,13 @@ const TABS = [
   { id: "closed", label: "Closed", countKey: "closed" as const },
 ];
 
+const SOURCES = [
+  { id: "all", label: "All" },
+  { id: "facebook", label: "Facebook" },
+  { id: "website", label: "Website" },
+] as const;
+type SourceFilter = (typeof SOURCES)[number]["id"];
+
 const STATUS_STYLE: Record<string, string> = {
   new: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   waiting: "bg-amber-500/10 text-amber-500 border-amber-500/20",
@@ -87,9 +94,27 @@ function isFacebookUsername(value?: string | null) {
   return Boolean(value?.startsWith("fb:"));
 }
 
+function displaySupportName(ticket: {
+  player_name?: string | null;
+  player_username?: string | null;
+  player_id?: string | null;
+  messenger_user_name?: string | null;
+}) {
+  const raw =
+    ticket.messenger_user_name ||
+    ticket.player_name ||
+    ticket.player_username ||
+    `Player #${ticket.player_id?.slice(0, 6) ?? "-"}`;
+  if (isFacebookUsername(ticket.player_username) && /^Facebook User \d+$/i.test(raw)) {
+    return "Facebook visitor";
+  }
+  return raw;
+}
+
 function SupportCenter() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<string>("new");
+  const [source, setSource] = useState<SourceFilter>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pagesOpen, setPagesOpen] = useState(false);
@@ -98,10 +123,13 @@ function SupportCenter() {
   const fetchCounts = useServerFn(ticketCounts);
 
   const tickets = useQuery({
-    queryKey: ["support-tickets", tab, search],
-    queryFn: () => fetchList({ data: { tab, search } }),
+    queryKey: ["support-tickets", tab, source, search],
+    queryFn: () => fetchList({ data: { tab, source, search } }),
   });
-  const counts = useQuery({ queryKey: ["support-counts"], queryFn: () => fetchCounts() });
+  const counts = useQuery({
+    queryKey: ["support-counts", source],
+    queryFn: () => fetchCounts({ data: { source } }),
+  });
 
   // Realtime: invalidate on any ticket/message change
   useEffect(() => {
@@ -161,6 +189,26 @@ function SupportCenter() {
                 className="pl-8 h-8 text-xs"
               />
             </div>
+            <div className="grid grid-cols-3 gap-1 rounded-md border border-border bg-surface p-0.5">
+              {SOURCES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setSource(item.id);
+                    setSelectedId(null);
+                  }}
+                  className={cn(
+                    "rounded px-2 py-1 text-[10px] uppercase tracking-wider transition-colors",
+                    source === item.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
             <div className="flex flex-wrap gap-1">
               {TABS.map((t) => {
                 const c = counts.data?.[t.countKey] ?? 0;
@@ -195,14 +243,11 @@ function SupportCenter() {
             )}
             {tickets.data?.map((t) => {
               const active = t.id === selectedId;
-              const displayName =
-                t.messenger_user_name ||
-                t.player_name ||
-                t.player_username ||
-                `Player #${t.player_id?.slice(0, 6) ?? "-"}`;
+              const displayName = displaySupportName(t);
               const pageName =
                 t.messenger_page_name ||
                 (isFacebookUsername(t.player_username) ? t.game_provider : null);
+              const ticketSource = t.source || (isFacebookUsername(t.player_username) ? "facebook" : "website");
               return (
                 <button
                   key={t.id}
@@ -214,6 +259,9 @@ function SupportCenter() {
                 >
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-xs font-medium truncate">{displayName}</span>
+                    <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0">
+                      {ticketSource === "facebook" ? "Facebook" : "Website"}
+                    </Badge>
                     {pageName && (
                       <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0">
                         {pageName}
@@ -465,12 +513,17 @@ function MessengerPagesDialog({
             {pages.isLoading && (
               <div className="text-xs text-muted-foreground">Loading pages...</div>
             )}
-            {pages.data?.pages.length === 0 && (
+            {pages.isError && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                {(pages.error as Error)?.message || "Could not load Messenger pages."}
+              </div>
+            )}
+            {!pages.isLoading && !pages.isError && (pages.data?.pages?.length ?? 0) === 0 && (
               <div className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
                 No Messenger pages saved yet.
               </div>
             )}
-            {pages.data?.pages.map((page) => (
+            {pages.data?.pages?.map((page) => (
               <div
                 key={page.page_id}
                 className="flex flex-col gap-3 rounded-md border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -492,11 +545,22 @@ function MessengerPagesDialog({
                     >
                       {page.has_token ? page.token_status : "no token"}
                     </Badge>
+                    {page.webhook_subscription_status &&
+                      page.webhook_subscription_status !== "unknown" && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Webhook: {page.webhook_subscription_status}
+                        </Badge>
+                      )}
                   </div>
                   <div className="mt-1 font-mono text-[10px] text-muted-foreground">
                     {page.page_id}
                     {page.token_source ? ` | ${page.token_source}` : ""}
                   </div>
+                  {page.webhook_subscribed_fields?.length > 0 && (
+                    <div className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">
+                      {page.webhook_subscribed_fields.length} webhook fields subscribed
+                    </div>
+                  )}
                   {page.last_error && (
                     <div className="mt-1 line-clamp-2 text-[10px] text-destructive">
                       {page.last_error}

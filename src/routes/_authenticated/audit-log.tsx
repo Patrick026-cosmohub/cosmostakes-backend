@@ -15,7 +15,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fmtUSD, fmtRelative } from "@/lib/format";
-import { ArrowDownToLine, ArrowUpFromLine, Wallet, TrendingUp, Trophy, ScrollText } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Wallet,
+  TrendingUp,
+  Trophy,
+  ScrollText,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/audit-log")({
@@ -47,12 +54,27 @@ function AuditLogPage() {
   if (r.isLoading || l.isLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading audit…</div>;
   }
-  if (r.error) return <div className="p-6 text-sm text-destructive">Failed: {(r.error as Error).message}</div>;
+  if (r.error)
+    return <div className="p-6 text-sm text-destructive">Failed: {(r.error as Error).message}</div>;
 
   const data = r.data!;
-  const series = data[period] as { key: string; label: string; in: number; out: number; profit: number; holding: number }[];
+  const series = data[period] as {
+    key: string;
+    label: string;
+    in: number;
+    out: number;
+    profit: number;
+    holding: number;
+  }[];
   const topGames = data.perGame as {
-    id: string; name: string; provider: string | null; in: number; out: number; profit: number; depositCount: number; cashoutCount: number;
+    id: string;
+    name: string;
+    provider: string | null;
+    in: number;
+    out: number;
+    profit: number;
+    depositCount: number;
+    cashoutCount: number;
   }[];
 
   return (
@@ -60,15 +82,33 @@ function AuditLogPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Audit</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Daily, weekly, and monthly audit — money in, out, holding, profit. Most cashed-out games ranked on top, followed by raw staff activity.
+          Daily, weekly, and monthly audit — money in, out, holding, profit. Most cashed-out games
+          ranked on top, followed by raw staff activity.
         </p>
       </div>
 
       {/* Today's audit */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPI icon={ArrowDownToLine} tone="success" label="Today IN" value={fmtUSD(data.today.in)} sub={`All-time ${fmtUSD(data.totals.in)}`} />
-        <KPI icon={ArrowUpFromLine} tone="warning" label="Today OUT" value={fmtUSD(data.today.out)} sub={`All-time ${fmtUSD(data.totals.out)}`} />
-        <KPI icon={Wallet} label="Holding" value={fmtUSD(data.totals.holding)} sub="Net player liability" />
+        <KPI
+          icon={ArrowDownToLine}
+          tone="success"
+          label="Today IN"
+          value={fmtUSD(data.today.in)}
+          sub={`All-time ${fmtUSD(data.totals.in)}`}
+        />
+        <KPI
+          icon={ArrowUpFromLine}
+          tone="warning"
+          label="Today OUT"
+          value={fmtUSD(data.today.out)}
+          sub={`All-time ${fmtUSD(data.totals.out)}`}
+        />
+        <KPI
+          icon={Wallet}
+          label="Holding"
+          value={fmtUSD(data.totals.holding)}
+          sub="Net player liability"
+        />
         <KPI
           icon={TrendingUp}
           tone={data.today.profit >= 0 ? "success" : "destructive"}
@@ -84,7 +124,9 @@ function AuditLogPage() {
           <CardTitle className="text-base flex items-center gap-2">
             <Trophy className="size-4 text-warning" /> Most cashed-out games
           </CardTitle>
-          <CardDescription>Top payout game first. Used to spot heavy outflow concentration.</CardDescription>
+          <CardDescription>
+            Top payout game first. Used to spot heavy outflow concentration.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -124,14 +166,27 @@ function AuditLogPage() {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium text-sm">{g.name}</div>
-                      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{g.provider ?? "—"}</div>
+                      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                        {g.provider ?? "—"}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-success">{fmtUSD(g.in)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-warning">{fmtUSD(g.out)}</TableCell>
-                    <TableCell className={cn("text-right tabular-nums font-semibold", g.profit >= 0 ? "text-success" : "text-destructive")}>
+                    <TableCell className="text-right tabular-nums text-success">
+                      {fmtUSD(g.in)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-warning">
+                      {fmtUSD(g.out)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-right tabular-nums font-semibold",
+                        g.profit >= 0 ? "text-success" : "text-destructive",
+                      )}
+                    >
                       {fmtUSD(g.profit)}
                     </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">{g.cashoutCount}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {g.cashoutCount}
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -146,7 +201,9 @@ function AuditLogPage() {
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <CardTitle className="text-base">Cashflow audit</CardTitle>
-              <CardDescription>Per-period in / out / profit / holding. Most recent at bottom.</CardDescription>
+              <CardDescription>
+                Per-period in / out / profit / holding. Most recent at bottom.
+              </CardDescription>
             </div>
             <Tabs value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
               <TabsList>
@@ -161,7 +218,9 @@ function AuditLogPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{period === "daily" ? "Day" : period === "weekly" ? "Week" : "Month"}</TableHead>
+                <TableHead>
+                  {period === "daily" ? "Day" : period === "weekly" ? "Week" : "Month"}
+                </TableHead>
                 <TableHead className="text-right">In</TableHead>
                 <TableHead className="text-right">Out</TableHead>
                 <TableHead className="text-right">Profit</TableHead>
@@ -172,12 +231,23 @@ function AuditLogPage() {
               {series.map((b) => (
                 <TableRow key={b.key}>
                   <TableCell className="text-xs font-medium">{b.label}</TableCell>
-                  <TableCell className="text-right tabular-nums text-success">{fmtUSD(b.in)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-warning">{fmtUSD(b.out)}</TableCell>
-                  <TableCell className={cn("text-right tabular-nums font-semibold", b.profit >= 0 ? "text-success" : "text-destructive")}>
+                  <TableCell className="text-right tabular-nums text-success">
+                    {fmtUSD(b.in)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-warning">
+                    {fmtUSD(b.out)}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-right tabular-nums font-semibold",
+                      b.profit >= 0 ? "text-success" : "text-destructive",
+                    )}
+                  >
                     {fmtUSD(b.profit)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{fmtUSD(b.holding)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {fmtUSD(b.holding)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -193,7 +263,9 @@ function AuditLogPage() {
               <CardTitle className="text-base flex items-center gap-2">
                 <ScrollText className="size-4 text-primary" /> Staff activity
               </CardTitle>
-              <CardDescription>Every approval, rejection, role change, and wallet adjustment. Newest first.</CardDescription>
+              <CardDescription>
+                Every approval, rejection, role change, and wallet adjustment. Newest first.
+              </CardDescription>
             </div>
             <Input
               value={search}
@@ -224,15 +296,25 @@ function AuditLogPage() {
               ) : (
                 filteredLogs.map((a: any) => (
                   <TableRow key={a.id}>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{fmtRelative(a.created_at)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {fmtRelative(a.created_at)}
+                    </TableCell>
                     <TableCell className="text-xs">
-                      <div className="font-medium">{a.staff?.full_name ?? a.staff?.email ?? "System"}</div>
-                      {a.staff?.email && <div className="text-[10px] text-muted-foreground">{a.staff.email}</div>}
+                      <div className="font-medium">
+                        {a.staff?.full_name ?? a.staff?.email ?? "System"}
+                      </div>
+                      {a.staff?.email && (
+                        <div className="text-[10px] text-muted-foreground">{a.staff.email}</div>
+                      )}
                     </TableCell>
                     <TableCell className="font-mono text-[11px]">{a.action}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {a.entity_type ?? "—"}
-                      {a.entity_id && <div className="font-mono text-[10px] truncate max-w-[160px]">{a.entity_id}</div>}
+                      {a.entity_id && (
+                        <div className="font-mono text-[10px] truncate max-w-[160px]">
+                          {a.entity_id}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-[11px] text-muted-foreground font-mono max-w-md truncate">
                       {a.metadata ? JSON.stringify(a.metadata) : ""}
@@ -274,7 +356,9 @@ function KPI({
               !tone && "text-muted-foreground",
             )}
           />
-          <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
+          <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            {label}
+          </span>
         </div>
         <div
           className={cn(

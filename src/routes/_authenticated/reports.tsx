@@ -14,14 +14,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fmtUSD } from "@/lib/format";
-import { ArrowDownToLine, ArrowUpFromLine, Wallet, TrendingUp, Trophy, Gamepad2 } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Wallet,
+  TrendingUp,
+  Trophy,
+  Gamepad2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/reports")({
   component: ReportsPage,
 });
 
-type Bucket = { key: string; label: string; in: number; out: number; profit: number; holding: number };
+type Bucket = {
+  key: string;
+  label: string;
+  in: number;
+  out: number;
+  profit: number;
+  holding: number;
+};
 type GameRow = {
   id: string;
   name: string;
@@ -55,15 +69,33 @@ function ReportsPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Financial Reports</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Daily, weekly, and monthly cashflow — money in, money out, holding, and profit. Per-game ranking sorted by cashout volume.
+          Daily, weekly, and monthly cashflow — money in, money out, holding, and profit. Per-game
+          ranking sorted by cashout volume.
         </p>
       </div>
 
       {/* All-time + today */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPI icon={ArrowDownToLine} tone="success" label="All-time IN" value={fmtUSD(data.totals.in)} sub={`Today ${fmtUSD(data.today.in)}`} />
-        <KPI icon={ArrowUpFromLine} tone="warning" label="All-time OUT" value={fmtUSD(data.totals.out)} sub={`Today ${fmtUSD(data.today.out)}`} />
-        <KPI icon={Wallet} label="Holding" value={fmtUSD(data.totals.holding)} sub="Net player liability" />
+        <KPI
+          icon={ArrowDownToLine}
+          tone="success"
+          label="All-time IN"
+          value={fmtUSD(data.totals.in)}
+          sub={`Today ${fmtUSD(data.today.in)}`}
+        />
+        <KPI
+          icon={ArrowUpFromLine}
+          tone="warning"
+          label="All-time OUT"
+          value={fmtUSD(data.totals.out)}
+          sub={`Today ${fmtUSD(data.today.out)}`}
+        />
+        <KPI
+          icon={Wallet}
+          label="Holding"
+          value={fmtUSD(data.totals.holding)}
+          sub="Net player liability"
+        />
         <KPI
           icon={TrendingUp}
           tone={data.totals.profit >= 0 ? "success" : "destructive"}
@@ -79,7 +111,9 @@ function ReportsPage() {
           <CardTitle className="text-base flex items-center gap-2">
             <Trophy className="size-4 text-warning" /> Top games by cashout volume
           </CardTitle>
-          <CardDescription>Most-paid-out game on top. Profit = deposits in − cashouts out for that game.</CardDescription>
+          <CardDescription>
+            Most-paid-out game on top. Profit = deposits in − cashouts out for that game.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -129,8 +163,12 @@ function ReportsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-success">{fmtUSD(g.in)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-warning">{fmtUSD(g.out)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-success">
+                      {fmtUSD(g.in)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-warning">
+                      {fmtUSD(g.out)}
+                    </TableCell>
                     <TableCell
                       className={cn(
                         "text-right tabular-nums font-semibold",
@@ -139,8 +177,12 @@ function ReportsPage() {
                     >
                       {fmtUSD(g.profit)}
                     </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">{g.depositCount}</TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">{g.cashoutCount}</TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {g.depositCount}
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {g.cashoutCount}
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -155,7 +197,9 @@ function ReportsPage() {
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <CardTitle className="text-base">Cashflow report</CardTitle>
-              <CardDescription>In, out, profit, and holding by period. Most recent at the bottom.</CardDescription>
+              <CardDescription>
+                In, out, profit, and holding by period. Most recent at the bottom.
+              </CardDescription>
             </div>
             <Tabs value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
               <TabsList>
@@ -173,7 +217,9 @@ function ReportsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{period === "daily" ? "Day" : period === "weekly" ? "Week" : "Month"}</TableHead>
+                <TableHead>
+                  {period === "daily" ? "Day" : period === "weekly" ? "Week" : "Month"}
+                </TableHead>
                 <TableHead className="text-right">In</TableHead>
                 <TableHead className="text-right">Out</TableHead>
                 <TableHead className="text-right">Profit</TableHead>
@@ -187,8 +233,12 @@ function ReportsPage() {
                 return (
                   <TableRow key={b.key}>
                     <TableCell className="text-xs font-medium">{b.label}</TableCell>
-                    <TableCell className="text-right tabular-nums text-success">{fmtUSD(b.in)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-warning">{fmtUSD(b.out)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-success">
+                      {fmtUSD(b.in)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-warning">
+                      {fmtUSD(b.out)}
+                    </TableCell>
                     <TableCell
                       className={cn(
                         "text-right tabular-nums font-semibold",
@@ -197,7 +247,9 @@ function ReportsPage() {
                     >
                       {fmtUSD(b.profit)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">{fmtUSD(b.holding)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {fmtUSD(b.holding)}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1 items-end h-6">
                         <div
@@ -249,7 +301,9 @@ function KPI({
               !tone && "text-muted-foreground",
             )}
           />
-          <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
+          <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            {label}
+          </span>
         </div>
         <div
           className={cn(

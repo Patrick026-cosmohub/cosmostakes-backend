@@ -6,8 +6,7 @@ import {
   pageNameForId,
 } from "@/lib/meta-messenger.server";
 
-const VERIFY_TOKEN =
-  process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || "HK0N5_omZ3UFwHhmiPv9VTs6joulPnC1";
+const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN?.trim() || "";
 const APP_SECRET = process.env.META_APP_SECRET?.trim();
 
 function json(body: unknown, status = 200) {
@@ -214,6 +213,42 @@ async function upsertMetaMessage(pageId: string, event: any) {
   );
   const createdAt = new Date(Number(event?.timestamp) || Date.now()).toISOString();
 
+  let supportChatMessageId: string | null = null;
+  if (senderType === "staff") {
+    supportChatMessageId = await matchingRecentStaffMessage(supabaseAdmin, ticketId, body);
+  } else {
+    const recent = await supabaseAdmin
+      .from("chat_messages" as never)
+      .select("id")
+      .eq("ticket_id", ticketId)
+      .eq("sender_type", senderType)
+      .eq("body", body)
+      .gte("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (recent.error) throw recent.error;
+    supportChatMessageId = ((recent.data as any)?.id as string | undefined) ?? null;
+  }
+
+  if (!supportChatMessageId) {
+    const supportMessage = await supabaseAdmin
+      .from("chat_messages" as never)
+      .insert({
+        ticket_id: ticketId,
+        sender_type: senderType,
+        sender_id: null,
+        body,
+        attachment_url: attachmentUrl,
+        read_by_staff: senderType !== "player",
+        created_at: createdAt,
+      } as never)
+      .select("id")
+      .single();
+    if (supportMessage.error) throw supportMessage.error;
+    supportChatMessageId = (supportMessage.data as any).id;
+  }
+
   try {
     await ensureMetaPage(supabaseAdmin, pageId);
 
@@ -234,42 +269,6 @@ async function upsertMetaMessage(pageId: string, event: any) {
       .select("id")
       .single();
     if (conversation.error) throw conversation.error;
-
-    let supportChatMessageId: string | null = null;
-    if (senderType === "staff") {
-      supportChatMessageId = await matchingRecentStaffMessage(supabaseAdmin, ticketId, body);
-    } else {
-      const recent = await supabaseAdmin
-        .from("chat_messages" as never)
-        .select("id")
-        .eq("ticket_id", ticketId)
-        .eq("sender_type", senderType)
-        .eq("body", body)
-        .gte("created_at", new Date(Date.now() - 2 * 60 * 1000).toISOString())
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (recent.error) throw recent.error;
-      supportChatMessageId = ((recent.data as any)?.id as string | undefined) ?? null;
-    }
-
-    if (!supportChatMessageId) {
-      const supportMessage = await supabaseAdmin
-        .from("chat_messages" as never)
-        .insert({
-          ticket_id: ticketId,
-          sender_type: senderType,
-          sender_id: null,
-          body,
-          attachment_url: attachmentUrl,
-          read_by_staff: senderType !== "player",
-          created_at: createdAt,
-        } as never)
-        .select("id")
-        .single();
-      if (supportMessage.error) throw supportMessage.error;
-      supportChatMessageId = (supportMessage.data as any).id;
-    }
 
     const metaMessage = await supabaseAdmin.from("meta_messages" as never).insert({
       conversation_id: (conversation.data as any).id,
