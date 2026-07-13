@@ -45,7 +45,7 @@ function AuthPage() {
       })
       .catch(() => {});
     const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session && (await supabaseSessionReady())) navigate({ to: "/dashboard" });
+      if (session && (await supabaseSessionReady())) navigate({ to: postLoginRoute });
     });
     return () => {
       mounted = false;

@@ -40,6 +40,14 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      if (
+        url.hostname === "payout.cosmostakes.net" &&
+        (url.pathname === "/" || url.pathname === "/dashboard")
+      ) {
+        return Response.redirect(new URL("/payouts", url), 307);
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
