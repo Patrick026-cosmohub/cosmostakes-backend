@@ -1008,7 +1008,7 @@ export const listStaff = createServerFn({ method: "GET" })
     const [{ data: profiles }, { data: roles }] = await Promise.all([
       supabase
         .from("staff_profiles")
-        .select("id,email,username,full_name,is_active,created_at,password_hash")
+        .select("id,email,username,full_name,is_active,created_at")
         .order("created_at"),
       supabase.from("user_roles").select("user_id,role"),
     ]);
@@ -1019,14 +1019,8 @@ export const listStaff = createServerFn({ method: "GET" })
       byUser.set(r.user_id, list);
     });
     return (profiles ?? [])
-      .filter((p) => Boolean((p as { password_hash?: string | null }).password_hash))
-      .map((p) => {
-        const { password_hash: _passwordHash, ...profile } = p as typeof p & {
-          password_hash?: string | null;
-        };
-        return { ...profile, roles: byUser.get(profile.id) ?? [] };
-      })
-      .filter((p) => p.roles.length > 0);
+      .map((profile) => ({ ...profile, roles: byUser.get(profile.id) ?? [] }))
+      .filter((p) => p.roles.length > 0 && !p.roles.includes("super_admin"));
   });
 
 export const setStaffRoles = createServerFn({ method: "POST" })
@@ -1104,8 +1098,6 @@ export const createStaff = createServerFn({ method: "POST" })
     if (!isSuper) throw new Error("Forbidden: super admin only");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { hashStaffPassword } = await import("./staff-auth.server");
-    const { randomUUID } = await import("node:crypto");
     const { data: clash } = await supabaseAdmin
       .from("staff_profiles")
       .select("id")
@@ -1139,14 +1131,13 @@ export const createStaff = createServerFn({ method: "POST" })
       throw new Error(authError?.message ?? "Could not create staff login");
     }
 
-    const newId = authUser.user.id || randomUUID();
+    const newId = authUser.user.id;
     const { error: profileError } = await supabaseAdmin.from("staff_profiles").insert({
       id: newId,
       email,
       username: data.username,
       full_name: data.full_name,
       is_active: true,
-      password_hash: await hashStaffPassword(data.password),
       password_updated_at: new Date().toISOString(),
     } as never);
     if (profileError) {
@@ -1244,6 +1235,7 @@ export const deleteStaff = createServerFn({ method: "POST" })
       .delete()
       .eq("id", data.user_id);
     if (error) throw new Error(error.message);
+    await supabaseAdmin.auth.admin.deleteUser(data.user_id).catch(() => {});
 
     await supabase.from("audit_logs").insert({
       staff_id: userId,
@@ -1293,7 +1285,6 @@ export const updateStaff = createServerFn({ method: "POST" })
       username?: string;
       full_name?: string;
       email?: string;
-      password_hash?: string;
       password_updated_at?: string;
       failed_login_attempts?: number;
       locked_until?: string | null;
@@ -1309,14 +1300,33 @@ export const updateStaff = createServerFn({ method: "POST" })
       profilePatch.username = data.username;
     }
     if (data.full_name !== undefined) profilePatch.full_name = data.full_name;
-    if (data.email !== undefined) profilePatch.email = data.email;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (data.email !== undefined) {
+      const email = data.email.toLowerCase();
+      const { data: emailClash } = await supabaseAdmin
+        .from("staff_profiles")
+        .select("id")
+        .ilike("email", email)
+        .neq("id", data.user_id)
+        .maybeSingle();
+      if (emailClash) throw new Error("Email already belongs to a staff account");
+      const { error: authEmailError } = await supabaseAdmin.auth.admin.updateUserById(
+        data.user_id,
+        { email, email_confirm: true },
+      );
+      if (authEmailError) throw new Error(authEmailError.message);
+      profilePatch.email = email;
+    }
     if (data.password !== undefined) {
-      const { hashStaffPassword } = await import("./staff-auth.server");
       const { loadSecurityPolicy, validatePasswordAgainstPolicy } =
         await import("./security-policy.server");
-      const policy = await loadSecurityPolicy(supabase);
+      const policy = await loadSecurityPolicy(supabaseAdmin);
       validatePasswordAgainstPolicy(data.password, policy);
-      profilePatch.password_hash = await hashStaffPassword(data.password);
+      const { error: authPasswordError } = await supabaseAdmin.auth.admin.updateUserById(
+        data.user_id,
+        { password: data.password },
+      );
+      if (authPasswordError) throw new Error(authPasswordError.message);
       profilePatch.password_updated_at = new Date().toISOString();
       profilePatch.failed_login_attempts = 0;
       profilePatch.locked_until = null;
@@ -1358,7 +1368,7 @@ export const getStaffDetail = createServerFn({ method: "GET" })
       await Promise.all([
         supabase
           .from("staff_profiles")
-          .select("id,email,username,full_name,is_active,created_at,password_hash")
+          .select("id,email,username,full_name,is_active,created_at")
           .eq("id", data.user_id)
           .maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", data.user_id),
@@ -1373,14 +1383,11 @@ export const getStaffDetail = createServerFn({ method: "GET" })
           .select("id", { count: "exact", head: true })
           .eq("staff_id", data.user_id),
       ]);
-    if (!profile || !(profile as { password_hash?: string | null }).password_hash) {
+    if (!profile) {
       throw new Error("Staff account not found");
     }
-    const { password_hash: _passwordHash, ...safeProfile } = profile as typeof profile & {
-      password_hash?: string | null;
-    };
     return {
-      profile: safeProfile,
+      profile,
       roles: (roles ?? []).map((r) => r.role as string),
       activity: activity ?? [],
       totalActions: actionCount ?? 0,

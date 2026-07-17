@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { getStaffSession, signInStaff } from "@/lib/staff-auth.functions";
+import { getStaffSession } from "@/lib/staff-auth.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,6 @@ function getPostLoginRoute() {
 
 function AuthPage() {
   const navigate = useNavigate();
-  const signIn = useServerFn(signInStaff);
   const getSession = useServerFn(getStaffSession);
   const [loading, setLoading] = useState(false);
   const [mfaChallenge, setMfaChallenge] = useState<{
@@ -67,22 +66,10 @@ function AuthPage() {
     const password = String(fd.get("password") ?? "");
     setLoading(true);
     try {
-      if (login.includes("@")) {
-        try {
-          await signInSupabaseAdmin(login, password);
-          return;
-        } catch {
-          // Fall through for older manually-created staff accounts that use the same email.
-        }
+      if (!login.includes("@")) {
+        throw new Error("Enter the staff email assigned by Super Admin");
       }
-      await signIn({
-        data: {
-          username: login,
-          password,
-        },
-      });
-      toast.success("Signed in");
-      navigate({ to: getPostLoginRoute() });
+      await signInSupabaseAdmin(login, password);
     } catch (error: any) {
       toast.error(error?.message ?? "Sign in failed");
     } finally {
