@@ -1138,7 +1138,6 @@ export const createStaff = createServerFn({ method: "POST" })
       username: data.username,
       full_name: data.full_name,
       is_active: true,
-      password_updated_at: new Date().toISOString(),
     } as never);
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(newId).catch(() => {});
@@ -1285,9 +1284,6 @@ export const updateStaff = createServerFn({ method: "POST" })
       username?: string;
       full_name?: string;
       email?: string;
-      password_updated_at?: string;
-      failed_login_attempts?: number;
-      locked_until?: string | null;
     } = {};
     if (data.username !== undefined) {
       const { data: clash } = await supabase
@@ -1327,9 +1323,6 @@ export const updateStaff = createServerFn({ method: "POST" })
         { password: data.password },
       );
       if (authPasswordError) throw new Error(authPasswordError.message);
-      profilePatch.password_updated_at = new Date().toISOString();
-      profilePatch.failed_login_attempts = 0;
-      profilePatch.locked_until = null;
     }
 
     if (Object.keys(profilePatch).length) {

@@ -27,8 +27,6 @@ async function loadStaffSession(token: string | null) {
   if (!token) return null;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { hashSessionToken } = await import("./staff-auth.server");
-  const { isPasswordExpired, loadSecurityPolicy } = await import("./security-policy.server");
-  const policy = await loadSecurityPolicy(supabaseAdmin);
   const tokenHash = await hashSessionToken(token);
   const { data: session, error: sessionError } = await supabaseAdmin
     .from("admin_sessions" as never)
@@ -42,7 +40,7 @@ async function loadStaffSession(token: string | null) {
   const [{ data: profile }, { data: roles }] = await Promise.all([
     supabaseAdmin
       .from("staff_profiles" as never)
-      .select("id,email,username,full_name,is_active,created_at,password_updated_at,locked_until")
+      .select("id,email,username,full_name,is_active,created_at")
       .eq("id", row.staff_id)
       .maybeSingle(),
     supabaseAdmin
@@ -58,14 +56,6 @@ async function loadStaffSession(token: string | null) {
   ) {
     return null;
   }
-  const profileRow = profile as {
-    password_updated_at?: string | null;
-    locked_until?: string | null;
-  };
-  if (profileRow.locked_until && new Date(profileRow.locked_until).getTime() > Date.now()) {
-    return null;
-  }
-  if (isPasswordExpired(profileRow.password_updated_at, policy)) return null;
 
   return {
     userId: row.staff_id,
