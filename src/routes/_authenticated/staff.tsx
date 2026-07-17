@@ -272,7 +272,7 @@ function AddStaffDialog({
     }
     onSubmit({
       username: String(fd.get("username")).trim(),
-      email: String(fd.get("email")),
+      email: String(fd.get("email")).trim(),
       password: String(fd.get("password")),
       full_name: String(fd.get("full_name")),
       roles,
@@ -296,8 +296,15 @@ function AddStaffDialog({
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email (optional contact)</Label>
-          <Input id="email" name="email" type="email" />
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="staff@cosmostakes.com"
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="password">Temporary password</Label>
@@ -310,7 +317,8 @@ function AddStaffDialog({
             defaultValue={genPassword()}
           />
           <p className="text-[10px] text-muted-foreground">
-            Share with the new staff member securely. They sign in with username + password.
+            Share with the new staff member securely. They sign in with email + password. If 2FA is
+            enrolled on their account, an authenticator code is required at login.
           </p>
         </div>
         <div className="space-y-2">

@@ -129,9 +129,9 @@ function AuthedLayout() {
           <p className="text-sm text-muted-foreground">
             Your staff session expired or is no longer active.
           </p>
-          <Link to="/auth">
-            <Button variant="outline">Go to sign in</Button>
-          </Link>
+          <Button type="button" variant="outline" onClick={() => router.navigate({ to: "/auth" })}>
+            Go to sign in
+          </Button>
         </div>
       </div>
     );

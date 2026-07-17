@@ -1085,7 +1085,7 @@ export const createStaff = createServerFn({ method: "POST" })
           .min(2)
           .max(40)
           .regex(/^[a-zA-Z0-9_.-]+$/, "Username may use letters, numbers, _ . -"),
-        email: z.string().email().optional().or(z.literal("")),
+        email: z.string().trim().email(),
         password: z.string().min(8).max(128),
         full_name: z.string().min(1).max(120),
         roles: z
@@ -1113,7 +1113,7 @@ export const createStaff = createServerFn({ method: "POST" })
       .maybeSingle();
     if (clash) throw new Error("Username already taken");
 
-    const email = data.email || `${data.username}@staff.local`;
+    const email = data.email.toLowerCase();
     const { data: emailClash } = await supabaseAdmin
       .from("staff_profiles")
       .select("id")
@@ -1126,7 +1126,20 @@ export const createStaff = createServerFn({ method: "POST" })
     const policy = await loadSecurityPolicy(supabaseAdmin);
     validatePasswordAgainstPolicy(data.password, policy);
 
-    const newId = randomUUID();
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: data.full_name,
+        username: data.username,
+      },
+    });
+    if (authError || !authUser.user) {
+      throw new Error(authError?.message ?? "Could not create staff login");
+    }
+
+    const newId = authUser.user.id || randomUUID();
     const { error: profileError } = await supabaseAdmin.from("staff_profiles").insert({
       id: newId,
       email,
@@ -1136,12 +1149,19 @@ export const createStaff = createServerFn({ method: "POST" })
       password_hash: await hashStaffPassword(data.password),
       password_updated_at: new Date().toISOString(),
     } as never);
-    if (profileError) throw new Error(profileError.message);
+    if (profileError) {
+      await supabaseAdmin.auth.admin.deleteUser(newId).catch(() => {});
+      throw new Error(profileError.message);
+    }
 
     const { error: rolesError } = await supabaseAdmin
       .from("user_roles")
       .insert(data.roles.map((role) => ({ user_id: newId, role })));
-    if (rolesError) throw new Error(rolesError.message);
+    if (rolesError) {
+      await supabaseAdmin.auth.admin.deleteUser(newId).catch(() => {});
+      await supabaseAdmin.from("staff_profiles" as never).delete().eq("id", newId);
+      throw new Error(rolesError.message);
+    }
 
     await supabase.from("audit_logs").insert({
       staff_id: userId,

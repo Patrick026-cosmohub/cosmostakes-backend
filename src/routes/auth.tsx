@@ -67,6 +67,14 @@ function AuthPage() {
     const password = String(fd.get("password") ?? "");
     setLoading(true);
     try {
+      if (login.includes("@")) {
+        try {
+          await signInSupabaseAdmin(login, password);
+          return;
+        } catch {
+          // Fall through for older manually-created staff accounts that use the same email.
+        }
+      }
       await signIn({
         data: {
           username: login,
@@ -76,15 +84,6 @@ function AuthPage() {
       toast.success("Signed in");
       navigate({ to: getPostLoginRoute() });
     } catch (error: any) {
-      if (login.includes("@")) {
-        try {
-          await signInSupabaseAdmin(login, password);
-          return;
-        } catch (supabaseError: any) {
-          toast.error(supabaseError?.message ?? error?.message ?? "Sign in failed");
-          return;
-        }
-      }
       toast.error(error?.message ?? "Sign in failed");
     } finally {
       setLoading(false);
