@@ -157,6 +157,13 @@ const CUSTOMER_TYPES: { value: CustomerType; label: string; detail: string }[] =
   { value: "external_customer", label: "External customer", detail: "No site account" },
 ];
 
+const RECIPIENT_COPY: Record<PaymentMethod, { label: string; placeholder: string }> = {
+  "Cash App": { label: "Cash tag", placeholder: "$cashtag" },
+  PayPal: { label: "PayPal username/email", placeholder: "PayPal username or email" },
+  Chime: { label: "Chime sign", placeholder: "$ChimeSign" },
+  Zelle: { label: "Email/phone number", placeholder: "Email or phone number" },
+};
+
 const EMPTY_FORM: FormState = {
   customerType: "external_customer",
   customerName: "",
@@ -522,6 +529,7 @@ function NewPayoutForm({
   onSubmit: () => void;
 }) {
   const amount = Number(form.amount || 0);
+  const recipientCopy = RECIPIENT_COPY[form.paymentMethod];
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
       <Card className="overflow-hidden border-border/80 bg-card/90">
@@ -617,12 +625,12 @@ function NewPayoutForm({
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Cash tag, email, or phone">
+              <Field label={recipientCopy.label}>
                 <Input
                   value={form.recipient}
                   onChange={(event) => setFormValue(setForm, "recipient", event.target.value)}
                   required
-                  placeholder="$cashtag / email / phone"
+                  placeholder={recipientCopy.placeholder}
                 />
               </Field>
               <Field label="Account-holder name">

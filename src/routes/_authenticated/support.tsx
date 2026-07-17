@@ -643,11 +643,19 @@ function ConversationPane({ ticketId, onBack }: { ticketId: string; onBack?: () 
   const assignMut = useMutation({
     mutationFn: (toStaffId: string | null | undefined) =>
       doAssign({ data: { ticketId, toStaffId } }),
-    onSuccess: () => {
+    onSuccess: (_result, toStaffId) => {
+      toast.success(
+        toStaffId === null
+          ? "Conversation unassigned"
+          : toStaffId === undefined
+            ? "Conversation assigned to you"
+            : "Conversation transferred",
+      );
       qc.invalidateQueries({ queryKey: ["support-ticket", ticketId] });
       qc.invalidateQueries({ queryKey: ["support-tickets"] });
       qc.invalidateQueries({ queryKey: ["support-counts"] });
     },
+    onError: (error: Error) => toast.error(error.message || "Could not assign conversation"),
   });
   const statusMut = useMutation({
     mutationFn: (status: string) => doStatus({ data: { ticketId, status } }),

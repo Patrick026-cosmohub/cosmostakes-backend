@@ -711,13 +711,40 @@ export const assignTicket = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     assertSupportAccess(context);
     const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const targetId = data.toStaffId === undefined ? userId : data.toStaffId;
 
-    const { data: prev } = await supabase
+    const { data: prev, error: prevError } = await supabase
       .from("support_tickets")
       .select("assigned_staff_id,status")
       .eq("id", data.ticketId)
       .maybeSingle();
+    if (prevError) throw new Error(prevError.message);
+    if (!prev) throw new Error("Ticket not found or not accessible");
+
+    if (targetId) {
+      const [{ data: targetProfile, error: targetProfileError }, { data: targetRoles, error: targetRolesError }] =
+        await Promise.all([
+          supabaseAdmin
+            .from("staff_profiles" as never)
+            .select("id,is_active")
+            .eq("id", targetId)
+            .maybeSingle(),
+          supabaseAdmin
+            .from("user_roles" as never)
+            .select("role")
+            .eq("user_id", targetId)
+            .in("role", ["support_agent", "admin", "super_admin"]),
+        ]);
+      if (targetProfileError) throw new Error(targetProfileError.message);
+      if (targetRolesError) throw new Error(targetRolesError.message);
+      if (!targetProfile || (targetProfile as { is_active?: boolean }).is_active === false) {
+        throw new Error("Selected staff account is not active");
+      }
+      if (!((targetRoles ?? []) as Array<{ role: string }>).length) {
+        throw new Error("Selected staff account cannot handle support conversations");
+      }
+    }
 
     const nextStatus =
       targetId === null
@@ -728,27 +755,31 @@ export const assignTicket = createServerFn({ method: "POST" })
           ? "in_progress"
           : "assigned";
 
-    const { error } = await supabase
-      .from("support_tickets")
+    const { error } = await supabaseAdmin
+      .from("support_tickets" as never)
       .update({ assigned_staff_id: targetId, status: nextStatus })
       .eq("id", data.ticketId);
     if (error) throw new Error(error.message);
 
-    await supabase.from("staff_assignments").insert({
+    const assignment = await supabaseAdmin.from("staff_assignments" as never).insert({
       ticket_id: data.ticketId,
       from_staff_id: prev?.assigned_staff_id ?? null,
       to_staff_id: targetId,
       action:
         targetId === null ? "unassigned" : prev?.assigned_staff_id ? "transferred" : "assigned",
       actor_id: userId,
-    });
-    await supabase.from("audit_logs").insert({
+    } as never);
+    if (assignment.error) {
+      console.warn("Support assignment audit insert failed", assignment.error.message);
+    }
+    const audit = await supabaseAdmin.from("audit_logs" as never).insert({
       action: targetId === null ? "support.unassign" : "support.assign",
       entity_type: "support_ticket",
       entity_id: data.ticketId,
       staff_id: userId,
       metadata: { to: targetId },
-    });
+    } as never);
+    if (audit.error) console.warn("Support assignment audit log failed", audit.error.message);
     return { ok: true };
   });
 
