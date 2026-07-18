@@ -1101,7 +1101,7 @@ function NotificationsView({
   const emailDetail =
     latestEmailStatus === "not_configured"
       ? "Owner email is not configured yet. In-app alerts are saving, but emails are not being sent."
-      : "Owner emails are sent when RESEND_API_KEY and PAYOUT_FROM_EMAIL are configured.";
+      : "Owner emails are sent through Resend or SMTP when sender credentials are configured.";
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-3">

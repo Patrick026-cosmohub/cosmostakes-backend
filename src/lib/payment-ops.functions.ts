@@ -110,9 +110,48 @@ async function sendOwnerEmail({
   body: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.PAYOUT_FROM_EMAIL || process.env.NOTIFICATION_FROM_EMAIL;
-  if (!apiKey || !from || to.length === 0) {
+  const resendFrom = process.env.PAYOUT_FROM_EMAIL || process.env.NOTIFICATION_FROM_EMAIL;
+  const smtpFrom = process.env.SMTP_FROM || resendFrom || process.env.SMTP_USER;
+  if (to.length === 0) {
     return { status: "not_configured" as const, error: null };
+  }
+
+  if (!apiKey || !resendFrom) {
+    const smtp = {
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === "true" || process.env.SMTP_PORT === "465",
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+      from: smtpFrom,
+    };
+    if (!smtp.host || !smtp.user || !smtp.pass || !smtp.from) {
+      return { status: "not_configured" as const, error: null };
+    }
+    try {
+      const nodemailer = await import("nodemailer");
+      const transporter = nodemailer.default.createTransport({
+        host: smtp.host,
+        port: smtp.port,
+        secure: smtp.secure,
+        auth: {
+          user: smtp.user,
+          pass: smtp.pass,
+        },
+      });
+      await transporter.sendMail({
+        from: smtp.from,
+        to,
+        subject: title,
+        text: body,
+      });
+      return { status: "sent" as const, error: null };
+    } catch (error) {
+      return {
+        status: "failed" as const,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   try {
@@ -123,7 +162,7 @@ async function sendOwnerEmail({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from,
+        from: resendFrom,
         to,
         subject: title,
         text: body,
