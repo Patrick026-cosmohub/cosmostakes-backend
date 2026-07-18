@@ -350,8 +350,8 @@ function PayoutsPage() {
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <PortalHeader me={meQ.data as any} />
-      <div className="mx-auto grid w-full max-w-7xl gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-5 lg:px-6 lg:py-5">
-        <aside className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:-mx-4 sm:px-4 lg:mx-0 lg:block lg:space-y-2 lg:overflow-visible lg:px-0 lg:pb-0">
+      <div className="mx-auto grid w-full max-w-[1500px] gap-5 px-4 py-5 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-6 lg:px-6 lg:py-6 2xl:px-8">
+        <aside className="flex w-full gap-2 overflow-x-auto rounded-xl border border-border/80 bg-card/55 p-2 lg:block lg:space-y-2 lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0">
           <NavButton
             active={view === "dashboard"}
             onClick={() => setView("dashboard")}
@@ -389,7 +389,7 @@ function PayoutsPage() {
           {view === "dashboard" && (
             <>
               <MetricGrid metrics={metrics} />
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-5">
+              <div className="grid gap-5">
                 <PayoutTable
                   title="Recent activity"
                   rows={recentRows}
@@ -488,7 +488,7 @@ function PortalHeader({
 }) {
   return (
     <div className="border-b border-border bg-background/80 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
+      <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-3 px-4 py-4 lg:px-6 2xl:px-8">
         <div className="flex items-center gap-3">
           <img
             src="/cosmo-logo.jpeg"
@@ -499,16 +499,14 @@ function PortalHeader({
             <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-warning sm:text-[10px] sm:tracking-[0.24em]">
               payout.cosmostakes.net
             </p>
-            <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
-              Staff Payout Portal
-            </h1>
+            <h1 className="text-lg font-semibold tracking-tight sm:text-xl">Staff Payout Portal</h1>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
           <div className="rounded-full border border-success/30 bg-success/10 px-3 py-1.5 text-xs font-semibold text-success">
             Protected workspace
           </div>
-          <div className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
+          <div className="max-w-full truncate rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
             {me?.profile?.full_name || me?.profile?.email || "Staff"}
           </div>
         </div>
@@ -532,7 +530,7 @@ function NavButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors lg:w-full",
+        "flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2.5 text-left text-sm transition-colors lg:w-full",
         active
           ? "border-warning/30 bg-warning/10 text-warning"
           : "border-transparent text-muted-foreground hover:border-border hover:bg-surface",
@@ -547,7 +545,7 @@ function NavButton({
 
 function MetricGrid({ metrics }: { metrics: Record<string, number> }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Metric
         label="Pending payouts"
         value={String(metrics.pendingPayouts ?? 0)}
@@ -588,13 +586,13 @@ function Metric({
 }) {
   return (
     <Card className="border-border/80 bg-card/90">
-      <CardContent className="p-3 sm:p-4">
-        <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground sm:text-[10px] sm:tracking-[0.18em]">
+      <CardContent className="p-4 lg:p-5">
+        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground lg:tracking-[0.18em]">
           {label}
         </div>
         <div
           className={cn(
-            "mt-1 text-xl font-semibold tabular-nums sm:text-2xl",
+            "mt-2 text-2xl font-semibold tabular-nums lg:text-3xl",
             tone === "success" && "text-success",
             tone === "warning" && "text-warning",
           )}
@@ -623,7 +621,7 @@ function NewPayoutForm({
   const amount = Number(form.amount || 0);
   const recipientCopy = RECIPIENT_COPY[form.paymentMethod];
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-5">
+    <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
       <Card className="overflow-hidden border-border/80 bg-card/90">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-gradient-to-r from-warning/15 via-primary/15 to-transparent px-3 py-4 sm:px-5">
           <div>
@@ -824,7 +822,7 @@ function PayoutTable({
 }) {
   return (
     <Card className="border-border/80 bg-card/90">
-      <CardContent className="space-y-4 p-3 sm:p-5">
+      <CardContent className="space-y-4 p-4 sm:p-5 lg:p-6">
         {title && <h2 className="font-semibold">{title}</h2>}
         <div className="space-y-3 md:hidden">
           {loading ? (
@@ -851,146 +849,148 @@ function PayoutTable({
             ))
           )}
         </div>
-        <div className="hidden overflow-x-auto md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Payout ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Brand</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead className="text-right">Requested</TableHead>
-                <TableHead>Status</TableHead>
-                {!compact && <TableHead>Staff</TableHead>}
-                <TableHead className="text-right">Date</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+        <div className="hidden overflow-x-auto rounded-lg md:block">
+          <div className="min-w-[1080px]">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell
-                    colSpan={compact ? 8 : 9}
-                    className="py-10 text-center text-sm text-muted-foreground"
-                  >
-                    Loading payouts...
-                  </TableCell>
+                  <TableHead>Payout ID</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Brand</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead className="text-right">Requested</TableHead>
+                  <TableHead>Status</TableHead>
+                  {!compact && <TableHead>Staff</TableHead>}
+                  <TableHead className="text-right">Date</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
-              ) : rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={compact ? 8 : 9}
-                    className="py-10 text-center text-sm text-muted-foreground"
-                  >
-                    No payout records found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map((row) => {
-                  const cspayPending = row.status === "pending" && Boolean(row.cspay_order_id);
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-mono text-xs">{shortId(row.id)}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{displayCustomer(row)}</div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {typeLabel(row.customer_type)}
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-[180px] truncate">
-                        {row.brand_page || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <MethodBadge value={String(row.payment_method_name || "Manual")} />
-                        {row.cspay_pay_way && (
-                          <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                            CSPay {row.cspay_pay_way}
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={compact ? 8 : 9}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
+                      Loading payouts...
+                    </TableCell>
+                  </TableRow>
+                ) : rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={compact ? 8 : 9}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
+                      No payout records found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rows.map((row) => {
+                    const cspayPending = row.status === "pending" && Boolean(row.cspay_order_id);
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-mono text-xs">{shortId(row.id)}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{displayCustomer(row)}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {typeLabel(row.customer_type)}
                           </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-semibold tabular-nums text-warning">
-                        {fmtUSD(row.amount_requested ?? row.amount)}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={row.status} />
-                        {row.cspay_order_id && (
-                          <div className="mt-1 max-w-[160px] truncate font-mono text-[10px] text-muted-foreground">
-                            {row.cspay_provider_status || "submitted"} / {row.cspay_order_id}
-                          </div>
-                        )}
-                        {row.cspay_error && (
-                          <div className="mt-1 max-w-[180px] truncate text-[10px] text-destructive">
-                            {row.cspay_error}
-                          </div>
-                        )}
-                      </TableCell>
-                      {!compact && (
-                        <TableCell className="text-xs text-muted-foreground">
-                          <div>Created: {staffName(row.created_staff, row.created_by)}</div>
-                          <div>Processed: {staffName(row.processed_staff, row.processed_by)}</div>
                         </TableCell>
-                      )}
-                      <TableCell className="text-right text-xs text-muted-foreground">
-                        <div>{fmtRelative(row.created_at)}</div>
-                        <div>{fmtDateTime(row.processed_at || row.created_at)}</div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-1">
-                          {row.status === "awaiting_approval" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 border-warning/30 text-warning hover:bg-warning/10"
-                              disabled={!isSuperAdmin || approving}
-                              onClick={() => onApprove(row)}
-                              title={!isSuperAdmin ? "Super Admin only" : "Approve payout"}
-                            >
-                              <ShieldCheck className="size-3.5" /> Approve
-                            </Button>
+                        <TableCell className="max-w-[180px] truncate">
+                          {row.brand_page || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <MethodBadge value={String(row.payment_method_name || "Manual")} />
+                          {row.cspay_pay_way && (
+                            <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                              CSPay {row.cspay_pay_way}
+                            </div>
                           )}
-                          {["ready_to_process", "awaiting_approval"].includes(row.status) &&
-                            !row.cspay_order_id && (
+                        </TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums text-warning">
+                          {fmtUSD(row.amount_requested ?? row.amount)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={row.status} />
+                          {row.cspay_order_id && (
+                            <div className="mt-1 max-w-[160px] truncate font-mono text-[10px] text-muted-foreground">
+                              {row.cspay_provider_status || "submitted"} / {row.cspay_order_id}
+                            </div>
+                          )}
+                          {row.cspay_error && (
+                            <div className="mt-1 max-w-[180px] truncate text-[10px] text-destructive">
+                              {row.cspay_error}
+                            </div>
+                          )}
+                        </TableCell>
+                        {!compact && (
+                          <TableCell className="text-xs text-muted-foreground">
+                            <div>Created: {staffName(row.created_staff, row.created_by)}</div>
+                            <div>Processed: {staffName(row.processed_staff, row.processed_by)}</div>
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          <div>{fmtRelative(row.created_at)}</div>
+                          <div>{fmtDateTime(row.processed_at || row.created_at)}</div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-wrap justify-end gap-1">
+                            {row.status === "awaiting_approval" && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-8"
-                                disabled={
-                                  !canManage ||
-                                  (row.status === "awaiting_approval" && !isSuperAdmin)
-                                }
-                                onClick={() => onSelectProcess(row)}
+                                className="h-8 border-warning/30 text-warning hover:bg-warning/10"
+                                disabled={!isSuperAdmin || approving}
+                                onClick={() => onApprove(row)}
+                                title={!isSuperAdmin ? "Super Admin only" : "Approve payout"}
                               >
-                                Process
+                                <ShieldCheck className="size-3.5" /> Approve
                               </Button>
                             )}
-                          {cspayPending && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 border-warning/30 text-warning hover:bg-warning/10"
-                              disabled={!canManage || syncingId === row.id}
-                              onClick={() => onSync(row)}
-                              title="Sync this payout with CSPay"
-                            >
-                              <RefreshCw
-                                className={cn("size-3.5", syncingId === row.id && "animate-spin")}
-                              />
-                              {syncingId === row.id ? "Syncing" : "Sync CSPay"}
-                            </Button>
-                          )}
-                          {row.status === "paid" && (
-                            <span className="text-xs text-success">
-                              {fmtUSD(row.actual_amount_paid)}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+                            {["ready_to_process", "awaiting_approval"].includes(row.status) &&
+                              !row.cspay_order_id && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8"
+                                  disabled={
+                                    !canManage ||
+                                    (row.status === "awaiting_approval" && !isSuperAdmin)
+                                  }
+                                  onClick={() => onSelectProcess(row)}
+                                >
+                                  Process
+                                </Button>
+                              )}
+                            {cspayPending && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 border-warning/30 text-warning hover:bg-warning/10"
+                                disabled={!canManage || syncingId === row.id}
+                                onClick={() => onSync(row)}
+                                title="Sync this payout with CSPay"
+                              >
+                                <RefreshCw
+                                  className={cn("size-3.5", syncingId === row.id && "animate-spin")}
+                                />
+                                {syncingId === row.id ? "Syncing" : "Sync CSPay"}
+                              </Button>
+                            )}
+                            {row.status === "paid" && (
+                              <span className="text-xs text-success">
+                                {fmtUSD(row.actual_amount_paid)}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -1021,19 +1021,28 @@ function PayoutMobileCard({
     ["ready_to_process", "awaiting_approval"].includes(row.status) && !row.cspay_order_id;
 
   return (
-    <div className="rounded-xl border border-border bg-background/45 p-3">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-xl border border-border bg-background/55 p-4 shadow-sm">
+      <div className="grid gap-3">
         <div className="min-w-0">
           <div className="break-words text-base font-semibold leading-snug">
             {displayCustomer(row)}
           </div>
-          <div className="mt-1 text-xs text-muted-foreground">{typeLabel(row.customer_type)}</div>
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="text-lg font-semibold tabular-nums text-warning">
-            {fmtUSD(row.amount_requested ?? row.amount)}
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{typeLabel(row.customer_type)}</span>
+            <span className="text-border">|</span>
+            <span>{row.brand_page || "Cosmo Stakes"}</span>
           </div>
-          <div className="mt-1 flex justify-end">
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-card/80 px-3 py-2">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              Requested
+            </div>
+            <div className="mt-0.5 text-xl font-semibold tabular-nums text-warning">
+              {fmtUSD(row.amount_requested ?? row.amount)}
+            </div>
+          </div>
+          <div className="flex justify-end">
             <StatusBadge status={row.status} />
           </div>
         </div>
@@ -1041,7 +1050,6 @@ function PayoutMobileCard({
 
       <div className="mt-3 grid gap-2 text-sm">
         <MobileFact label="Payout ID" value={shortId(row.id)} mono />
-        <MobileFact label="Brand" value={row.brand_page || "-"} />
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-muted-foreground">Method</span>
           <MethodBadge value={String(row.payment_method_name || "Manual")} />
@@ -1059,7 +1067,10 @@ function PayoutMobileCard({
             {row.cspay_error}
           </div>
         )}
-        <MobileFact label="Created" value={`${fmtRelative(row.created_at)} · ${fmtDateTime(row.created_at)}`} />
+        <MobileFact
+          label="Created"
+          value={`${fmtRelative(row.created_at)} - ${fmtDateTime(row.created_at)}`}
+        />
         <MobileFact label="Staff" value={staffName(row.processed_staff, row.processed_by)} />
       </div>
 
@@ -1110,15 +1121,7 @@ function PayoutMobileCard({
   );
 }
 
-function MobileFact({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
+function MobileFact({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
@@ -1356,7 +1359,7 @@ function ActivityPanel({
   notifications: PayoutNotification[];
 }) {
   return (
-    <div className="space-y-5">
+    <div className="grid gap-5 xl:grid-cols-2">
       <Card className="border-border/80 bg-card/90">
         <CardContent className="space-y-3 p-5">
           <div className="flex items-center gap-2">
@@ -1602,10 +1605,10 @@ function normalizePayoutRow(row: PayoutRow): PayoutRow {
           : row.status === "pending" && row.cspay_order_id
             ? "pending"
             : row.status === "pending" && amount > 200
-            ? "awaiting_approval"
-            : row.status === "pending"
-              ? "ready_to_process"
-              : row.status,
+              ? "awaiting_approval"
+              : row.status === "pending"
+                ? "ready_to_process"
+                : row.status,
   };
 }
 
