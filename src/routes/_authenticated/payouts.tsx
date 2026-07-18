@@ -1429,7 +1429,9 @@ function normalizePayoutRow(row: PayoutRow): PayoutRow {
         ? "paid"
         : row.status === ("cancelled" as PayoutStatus)
           ? "rejected"
-          : row.status === "pending" && amount > 200
+          : row.status === "pending" && row.cspay_order_id
+            ? "pending"
+            : row.status === "pending" && amount > 200
             ? "awaiting_approval"
             : row.status === "pending"
               ? "ready_to_process"
