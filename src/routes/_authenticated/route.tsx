@@ -31,7 +31,6 @@ import {
   Receipt,
   Lock,
   MessageSquare,
-  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROLE_LABEL, type Role } from "@/lib/format";
@@ -50,7 +49,6 @@ const NAV: { to: string; label: string; icon: typeof LayoutDashboard; permission
   { to: "/deposits", label: "Deposits", icon: ArrowDownToLine, permission: "deposits.view" },
   { to: "/cashouts", label: "Cashouts", icon: ArrowUpFromLine, permission: "cashouts.view" },
   { to: "/payments", label: "Payments", icon: CreditCard, permission: "payments.view" },
-  { to: "/payouts", label: "Payouts", icon: Send, permission: "payouts.view" },
   { to: "/transactions", label: "Transactions", icon: Receipt, permission: "transactions.view" },
   { to: "/support", label: "Support Center", icon: MessageSquare, permission: "support.access" },
   {
@@ -104,6 +102,9 @@ function AuthedLayout() {
   useEffect(() => {
     if (payoutHost && !pathname.startsWith("/payouts")) {
       router.navigate({ to: "/payouts", replace: true });
+    }
+    if (!payoutHost && pathname.startsWith("/payouts")) {
+      router.navigate({ to: "/dashboard", replace: true });
     }
   }, [pathname, payoutHost, router]);
 
@@ -181,6 +182,14 @@ function AuthedLayout() {
     return (
       <div className="min-h-screen bg-background nebula-glow">
         <Outlet />
+      </div>
+    );
+  }
+
+  if (!payoutHost && pathname.startsWith("/payouts")) {
+    return (
+      <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">
+        Opening admin dashboard...
       </div>
     );
   }

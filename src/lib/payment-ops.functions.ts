@@ -78,7 +78,8 @@ export const listPaymentRequests = createServerFn({ method: "GET" })
       .limit(300);
     if (data.status === "pending") q = q.in("provider_status", ["creating", "pending"]);
     if (data.status === "succeeded") q = q.in("provider_status", ["paid", "completed"]);
-    if (data.status === "failed") q = q.in("provider_status", ["failed", "expired", "amount_mismatch"]);
+    if (data.status === "failed")
+      q = q.in("provider_status", ["failed", "expired", "amount_mismatch"]);
     if (data.provider !== "all") q = q.eq("provider", data.provider);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
@@ -100,15 +101,7 @@ async function ownerRecipients(supabase: any) {
   return (staff ?? []) as Array<{ id: string; email: string | null; full_name: string | null }>;
 }
 
-async function sendOwnerEmail({
-  to,
-  title,
-  body,
-}: {
-  to: string[];
-  title: string;
-  body: string;
-}) {
+async function sendOwnerEmail({ to, title, body }: { to: string[]; title: string; body: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   const resendFrom = process.env.PAYOUT_FROM_EMAIL || process.env.NOTIFICATION_FROM_EMAIL;
   const smtpFrom = process.env.SMTP_FROM || resendFrom || process.env.SMTP_USER;
@@ -217,7 +210,7 @@ async function notifyOwners(
 }
 
 const payoutSelect =
-  "id,customer_type,customer_name,player_name,brand_page,payment_method_name,recipient_identifier,account_holder_name,recipient_details,amount,amount_requested,actual_amount_paid,reference_number,proof_screenshot_url,staff_note,note,processing_note,status,approval_required,owner_approved_by,owner_approved_at,created_by,processed_by,processed_at,created_at,updated_at";
+  "id,customer_type,customer_name,player_name,brand_page,payment_method_name,recipient_identifier,account_holder_name,recipient_details,amount,amount_requested,actual_amount_paid,reference_number,proof_screenshot_url,staff_note,note,processing_note,status,approval_required,owner_approved_by,owner_approved_at,created_by,processed_by,processed_at,created_at,updated_at,cspay_mch_order_no,cspay_order_id,cspay_pay_way,cspay_provider_status,cspay_error,cspay_sent_at,cspay_checked_at";
 
 export const listPayoutRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -258,7 +251,13 @@ export const listPayoutRequests = createServerFn({ method: "GET" })
 
     const staffIds = [
       ...new Set(
-        ((rows ?? []) as Array<{ created_by?: string; processed_by?: string; owner_approved_by?: string }>)
+        (
+          (rows ?? []) as Array<{
+            created_by?: string;
+            processed_by?: string;
+            owner_approved_by?: string;
+          }>
+        )
           .flatMap((row) => [row.created_by, row.processed_by, row.owner_approved_by])
           .filter(Boolean) as string[],
       ),
@@ -270,16 +269,21 @@ export const listPayoutRequests = createServerFn({ method: "GET" })
           .in("id", staffIds)
       : { data: [] };
     const staffById = new Map(
-      ((staff ?? []) as Array<{ id: string; full_name: string | null; email: string | null; username: string | null }>).map(
-        (person) => [person.id, person],
-      ),
+      (
+        (staff ?? []) as Array<{
+          id: string;
+          full_name: string | null;
+          email: string | null;
+          username: string | null;
+        }>
+      ).map((person) => [person.id, person]),
     );
     return ((rows ?? []) as Array<Record<string, unknown>>).map((row) => ({
       ...row,
-      created_staff: row.created_by ? staffById.get(String(row.created_by)) ?? null : null,
-      processed_staff: row.processed_by ? staffById.get(String(row.processed_by)) ?? null : null,
+      created_staff: row.created_by ? (staffById.get(String(row.created_by)) ?? null) : null,
+      processed_staff: row.processed_by ? (staffById.get(String(row.processed_by)) ?? null) : null,
       approved_staff: row.owner_approved_by
-        ? staffById.get(String(row.owner_approved_by)) ?? null
+        ? (staffById.get(String(row.owner_approved_by)) ?? null)
         : null,
     }));
   });
@@ -463,13 +467,177 @@ export const approvePayoutRequest = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const processPayoutViaCspay = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        actual_amount_paid: z.coerce.number().positive().max(1_000_000).optional().nullable(),
+        proof_screenshot_url: optionalText(1000),
+        processing_note: optionalText(1200),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    assertPermission(context, "payouts.manage");
+    const { supabase, userId } = context;
+    const { data: payout, error: fetchError } = await supabase
+      .from("payout_requests" as never)
+      .select(
+        "id,status,amount_requested,customer_name,brand_page,payment_method_name,recipient_identifier,account_holder_name,approval_required,cspay_order_id",
+      )
+      .eq("id", data.id)
+      .maybeSingle();
+    if (fetchError) throw new Error(fetchError.message);
+    if (!payout) throw new Error("Payout not found");
+
+    const row = payout as {
+      id: string;
+      status: string;
+      amount_requested?: number | string;
+      customer_name?: string;
+      brand_page?: string;
+      payment_method_name?: string;
+      recipient_identifier?: string;
+      account_holder_name?: string;
+      approval_required?: boolean;
+      cspay_order_id?: string | null;
+    };
+    if (row.cspay_order_id) throw new Error("This payout has already been sent to CSPay");
+    if (!["ready_to_process", "awaiting_approval"].includes(row.status)) {
+      throw new Error(`Payout is not ready for CSPay processing: ${row.status}`);
+    }
+    if (row.status === "awaiting_approval" && !isSuperAdmin(context)) {
+      throw new Error("Super Admin approval is required before this payout can be processed");
+    }
+    if (
+      Number(row.amount_requested ?? 0) > 200 &&
+      row.status !== "ready_to_process" &&
+      !isSuperAdmin(context)
+    ) {
+      throw new Error("Super Admin approval is required for payouts above $200");
+    }
+
+    const amount = Number(data.actual_amount_paid ?? row.amount_requested ?? 0);
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error("Actual amount paid is required");
+    const amountCents = Math.round(amount * 100);
+    if (amountCents <= 0) throw new Error("Actual amount paid is required");
+    if (!row.recipient_identifier) throw new Error("Recipient information is required");
+
+    const {
+      createCspayPayout,
+      cspayWebhookBaseUrl,
+      normalizeCspayPayoutRecipient,
+      resolveCspayPayoutMethod,
+    } = await import("@/lib/cspay.server");
+    const method = resolveCspayPayoutMethod(row.payment_method_name ?? "");
+    if (!method)
+      throw new Error(`Unsupported CSPay payout method: ${row.payment_method_name ?? "Unknown"}`);
+
+    const request = (await import("@tanstack/react-start/server")).getRequest();
+    const baseUrl = cspayWebhookBaseUrl(request);
+    const mchOrderNo = `PO-${row.id.slice(0, 8)}-${Date.now()}`;
+    const sentAt = new Date().toISOString();
+
+    try {
+      const result = await createCspayPayout({
+        userId: row.id,
+        amountCents,
+        mchOrderNo,
+        buyerTag: normalizeCspayPayoutRecipient(row.recipient_identifier, method),
+        notifyUrl: `${baseUrl}/api/payouts/cspay/webhook`,
+        clientIp: request?.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1",
+        payWay: method.payWay,
+        description: `Cosmo Stakes payout for ${row.account_holder_name || row.customer_name || method.label}`,
+      });
+
+      const { error } = await supabase
+        .from("payout_requests" as never)
+        .update({
+          status: "pending",
+          actual_amount_paid: amount,
+          reference_number: result.payOrderId,
+          proof_screenshot_url: data.proof_screenshot_url,
+          processing_note: data.processing_note,
+          note: data.processing_note ?? null,
+          processed_by: userId,
+          processed_at: sentAt,
+          cspay_mch_order_no: result.mchOrderNo,
+          cspay_order_id: result.payOrderId,
+          cspay_pay_way: method.payWay,
+          cspay_provider_status: "submitted",
+          cspay_payload: result.raw,
+          cspay_error: null,
+          cspay_sent_at: sentAt,
+          cspay_checked_at: sentAt,
+        } as never)
+        .eq("id", data.id);
+      if (error) throw new Error(error.message);
+
+      await supabase.from("audit_logs").insert({
+        staff_id: userId,
+        action: "payout.cspay_submitted",
+        entity_type: "payout_request",
+        entity_id: data.id,
+        metadata: {
+          amount_requested: row.amount_requested,
+          actual_amount_paid: amount,
+          customer_name: row.customer_name,
+          cspay_mch_order_no: result.mchOrderNo,
+          cspay_order_id: result.payOrderId,
+          cspay_pay_way: method.payWay,
+        },
+      });
+
+      await notifyOwners(supabase, {
+        payoutId: data.id,
+        eventType: "created",
+        title: `CSPay payout submitted: ${row.customer_name}`,
+        body: `${row.customer_name} was submitted to CSPay for $${amount.toFixed(2)} via ${method.label}. CSPay order: ${result.payOrderId}.`,
+        amount,
+      });
+
+      return { ok: true, status: "pending", cspayOrderId: result.payOrderId };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await supabase
+        .from("payout_requests" as never)
+        .update({
+          status: "failed",
+          actual_amount_paid: null,
+          reference_number: null,
+          proof_screenshot_url: data.proof_screenshot_url,
+          processing_note: data.processing_note,
+          note: data.processing_note ?? null,
+          processed_by: userId,
+          processed_at: sentAt,
+          cspay_mch_order_no: mchOrderNo,
+          cspay_pay_way: method.payWay,
+          cspay_provider_status: "submit_failed",
+          cspay_error: message,
+          cspay_sent_at: sentAt,
+          cspay_checked_at: sentAt,
+        } as never)
+        .eq("id", data.id);
+      await notifyOwners(supabase, {
+        payoutId: data.id,
+        eventType: "failed",
+        title: `CSPay payout failed: ${row.customer_name}`,
+        body: `${row.customer_name}'s $${amount.toFixed(2)} payout could not be sent through CSPay. ${message}`,
+        amount,
+      });
+      throw new Error(message);
+    }
+  });
+
 export const updatePayoutStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z
       .object({
         id: z.string().uuid(),
-        status: z.enum(["paid", "failed", "rejected"]),
+        status: z.enum(["failed", "rejected"]),
         actual_amount_paid: z.coerce.number().nonnegative().max(1_000_000).optional().nullable(),
         reference_number: optionalText(240),
         proof_screenshot_url: optionalText(1000),
@@ -482,7 +650,9 @@ export const updatePayoutStatus = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: payout, error: fetchError } = await supabase
       .from("payout_requests" as never)
-      .select("id,status,amount_requested,customer_name,brand_page,payment_method_name,staff_note,approval_required")
+      .select(
+        "id,status,amount_requested,customer_name,brand_page,payment_method_name,staff_note,approval_required",
+      )
       .eq("id", data.id)
       .maybeSingle();
     if (fetchError) throw new Error(fetchError.message);
@@ -502,22 +672,12 @@ export const updatePayoutStatus = createServerFn({ method: "POST" })
     if (row.status === "awaiting_approval" && !isSuperAdmin(context)) {
       throw new Error("Super Admin approval is required before this payout can be processed");
     }
-    if (data.status === "paid") {
-      if (data.actual_amount_paid == null || data.actual_amount_paid <= 0) {
-        throw new Error("Actual amount paid is required");
-      }
-      if (!data.reference_number) throw new Error("Transaction/reference number is required");
-      if (Number(row.amount_requested ?? 0) > 200 && row.status !== "ready_to_process" && !isSuperAdmin(context)) {
-        throw new Error("Super Admin approval is required for payouts above $200");
-      }
-    }
-
     const processedAt = new Date().toISOString();
     const { error } = await supabase
       .from("payout_requests" as never)
       .update({
         status: data.status,
-        actual_amount_paid: data.status === "paid" ? data.actual_amount_paid : null,
+        actual_amount_paid: null,
         reference_number: data.reference_number,
         proof_screenshot_url: data.proof_screenshot_url,
         processing_note: data.processing_note,
@@ -535,24 +695,16 @@ export const updatePayoutStatus = createServerFn({ method: "POST" })
       entity_id: data.id,
       metadata: {
         amount_requested: row.amount_requested,
-        actual_amount_paid: data.actual_amount_paid,
         customer_name: row.customer_name,
-        reference_number: data.reference_number,
       },
     });
 
     await notifyOwners(supabase, {
       payoutId: data.id,
-      eventType: data.status === "paid" ? "completed" : data.status,
-      title:
-        data.status === "paid"
-          ? `Payout completed: ${row.customer_name}`
-          : `Payout ${data.status}: ${row.customer_name}`,
-      body:
-        data.status === "paid"
-          ? `${row.customer_name} was paid $${Number(data.actual_amount_paid).toFixed(2)} via ${row.payment_method_name}. Reference: ${data.reference_number}.`
-          : `${row.customer_name}'s payout for ${row.brand_page ?? "Cosmo Stakes"} was marked ${data.status}.`,
-      amount: Number(data.actual_amount_paid ?? row.amount_requested ?? 0),
+      eventType: data.status,
+      title: `Payout ${data.status}: ${row.customer_name}`,
+      body: `${row.customer_name}'s payout for ${row.brand_page ?? "Cosmo Stakes"} was marked ${data.status}.`,
+      amount: Number(row.amount_requested ?? 0),
     });
 
     return { ok: true };
@@ -564,7 +716,9 @@ export const listPayoutNotifications = createServerFn({ method: "GET" })
     assertPermission(context, "payouts.view");
     const { data, error } = await context.supabase
       .from("payout_notifications" as never)
-      .select("id,payout_id,event_type,title,body,amount,email_status,email_error,read_at,created_at")
+      .select(
+        "id,payout_id,event_type,title,body,amount,email_status,email_error,read_at,created_at",
+      )
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);

@@ -6,16 +6,15 @@ import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bell,
-  Check,
   ChevronRight,
   Clock3,
   FileCheck2,
   History,
   Mail,
   Search,
+  Send,
   ShieldCheck,
   Sparkles,
-  Upload,
   WalletCards,
   XCircle,
 } from "lucide-react";
@@ -26,6 +25,7 @@ import {
   getPayoutDashboard,
   listPayoutNotifications,
   listPayoutRequests,
+  processPayoutViaCspay,
   updatePayoutStatus,
 } from "@/lib/payment-ops.functions";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +97,13 @@ type PayoutRow = {
   created_by: string | null;
   processed_by: string | null;
   processed_at: string | null;
+  cspay_mch_order_no: string | null;
+  cspay_order_id: string | null;
+  cspay_pay_way: string | null;
+  cspay_provider_status: string | null;
+  cspay_error: string | null;
+  cspay_sent_at: string | null;
+  cspay_checked_at: string | null;
   created_at: string;
   updated_at: string;
   created_staff?: StaffMini | null;
@@ -129,7 +136,6 @@ type FormState = {
 
 type ProcessState = {
   actualAmount: string;
-  referenceNumber: string;
   proofUrl: string;
   note: string;
 };
@@ -177,7 +183,6 @@ const EMPTY_FORM: FormState = {
 
 const EMPTY_PROCESS: ProcessState = {
   actualAmount: "",
-  referenceNumber: "",
   proofUrl: "",
   note: "",
 };
@@ -189,6 +194,7 @@ function PayoutsPage() {
   const fetchNotifications = useServerFn(listPayoutNotifications);
   const createPayout = useServerFn(createPayoutRequest);
   const approvePayout = useServerFn(approvePayoutRequest);
+  const sendCspayPayout = useServerFn(processPayoutViaCspay);
   const setPayoutStatus = useServerFn(updatePayoutStatus);
   const qc = useQueryClient();
 
@@ -220,7 +226,8 @@ function PayoutsPage() {
   });
 
   const roles = (meQ.data?.roles ?? []) as Role[];
-  const canManage = roles.includes("super_admin") || roles.includes("admin") || roles.includes("finance_agent");
+  const canManage =
+    roles.includes("super_admin") || roles.includes("admin") || roles.includes("finance_agent");
   const isSuperAdmin = roles.includes("super_admin");
   const rows = ((payoutsQ.data ?? []) as PayoutRow[]).map(normalizePayoutRow);
   const pendingRows = rows.filter((row) =>
@@ -228,7 +235,9 @@ function PayoutsPage() {
   );
   const approvalRows = rows.filter((row) => row.status === "awaiting_approval");
   const historyRows = useMemo(() => filterHistory(rows, historyFilters), [rows, historyFilters]);
-  const recentRows = (dashboardQ.data?.recent as PayoutRow[] | undefined)?.map(normalizePayoutRow) ?? rows.slice(0, 8);
+  const recentRows =
+    (dashboardQ.data?.recent as PayoutRow[] | undefined)?.map(normalizePayoutRow) ??
+    rows.slice(0, 8);
   const notifications =
     ((notificationsQ.data ?? dashboardQ.data?.notifications ?? []) as PayoutNotification[]) ?? [];
   const metrics = dashboardQ.data?.metrics ?? buildMetrics(rows);
@@ -256,7 +265,10 @@ function PayoutsPage() {
     onSuccess: () => {
       toast.success("Payout request saved");
       if (Number(form.amount) > 200) {
-        notifyBrowser("Owner approval needed", `${form.customerName} requires approval for ${fmtUSD(form.amount)}.`);
+        notifyBrowser(
+          "Owner approval needed",
+          `${form.customerName} requires approval for ${fmtUSD(form.amount)}.`,
+        );
       }
       setForm(EMPTY_FORM);
       setView(Number(form.amount) > 200 ? "approval" : "dashboard");
@@ -275,24 +287,42 @@ function PayoutsPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: (vars: { row: PayoutRow; status: "paid" | "failed" | "rejected" }) =>
+    mutationFn: (vars: { row: PayoutRow; status: "failed" | "rejected" }) =>
       setPayoutStatus({
         data: {
           id: vars.row.id,
           status: vars.status,
-          actual_amount_paid: vars.status === "paid" ? Number(processForm.actualAmount) : null,
-          reference_number: vars.status === "paid" ? processForm.referenceNumber : null,
           proof_screenshot_url: processForm.proofUrl,
           processing_note: processForm.note,
         },
       }),
     onSuccess: (_data, vars) => {
-      const message =
-        vars.status === "paid"
-          ? `${displayCustomer(vars.row)} paid ${fmtUSD(processForm.actualAmount)}`
-          : `${displayCustomer(vars.row)} marked ${vars.status}`;
+      const message = `${displayCustomer(vars.row)} marked ${vars.status}`;
       toast.success(message);
       notifyBrowser("Payout updated", message);
+      setSelectedRow(null);
+      setProcessForm(EMPTY_PROCESS);
+      refreshAll();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const cspayMutation = useMutation({
+    mutationFn: (row: PayoutRow) =>
+      sendCspayPayout({
+        data: {
+          id: row.id,
+          actual_amount_paid: Number(
+            processForm.actualAmount || row.amount_requested || row.amount,
+          ),
+          proof_screenshot_url: processForm.proofUrl,
+          processing_note: processForm.note,
+        },
+      }),
+    onSuccess: (_data, row) => {
+      const message = `${displayCustomer(row)} submitted to CSPay for ${fmtUSD(processForm.actualAmount || row.amount_requested || row.amount)}`;
+      toast.success(message);
+      notifyBrowser("CSPay payout submitted", message);
       setSelectedRow(null);
       setProcessForm(EMPTY_PROCESS);
       refreshAll();
@@ -305,7 +335,11 @@ function PayoutsPage() {
       <PortalHeader me={meQ.data as any} />
       <div className="mx-auto grid max-w-7xl gap-5 px-4 py-5 lg:grid-cols-[230px_minmax(0,1fr)] lg:px-6">
         <aside className="space-y-2">
-          <NavButton active={view === "dashboard"} onClick={() => setView("dashboard")} icon={WalletCards}>
+          <NavButton
+            active={view === "dashboard"}
+            onClick={() => setView("dashboard")}
+            icon={WalletCards}
+          >
             Payout Dashboard
           </NavButton>
           <NavButton active={view === "new"} onClick={() => setView("new")} icon={FileCheck2}>
@@ -317,7 +351,11 @@ function PayoutsPage() {
           <NavButton active={view === "history"} onClick={() => setView("history")} icon={History}>
             Payout History
           </NavButton>
-          <NavButton active={view === "notifications"} onClick={() => setView("notifications")} icon={Bell}>
+          <NavButton
+            active={view === "notifications"}
+            onClick={() => setView("notifications")}
+            icon={Bell}
+          >
             Notifications
           </NavButton>
 
@@ -351,9 +389,12 @@ function PayoutsPage() {
                 row={selectedRow}
                 form={processForm}
                 setForm={setProcessForm}
-                loading={statusMutation.isPending}
+                loading={statusMutation.isPending || cspayMutation.isPending}
                 onClose={() => setSelectedRow(null)}
-                onSubmit={(status) => selectedRow && statusMutation.mutate({ row: selectedRow, status })}
+                onSend={() => selectedRow && cspayMutation.mutate(selectedRow)}
+                onMark={(status) =>
+                  selectedRow && statusMutation.mutate({ row: selectedRow, status })
+                }
               />
             </>
           )}
@@ -384,9 +425,12 @@ function PayoutsPage() {
                 row={selectedRow}
                 form={processForm}
                 setForm={setProcessForm}
-                loading={statusMutation.isPending}
+                loading={statusMutation.isPending || cspayMutation.isPending}
                 onClose={() => setSelectedRow(null)}
-                onSubmit={(status) => selectedRow && statusMutation.mutate({ row: selectedRow, status })}
+                onSend={() => selectedRow && cspayMutation.mutate(selectedRow)}
+                onMark={(status) =>
+                  selectedRow && statusMutation.mutate({ row: selectedRow, status })
+                }
               />
             </>
           )}
@@ -414,7 +458,11 @@ function PayoutsPage() {
   );
 }
 
-function PortalHeader({ me }: { me: { profile?: { full_name?: string | null; email?: string | null }; roles?: string[] } | null }) {
+function PortalHeader({
+  me,
+}: {
+  me: { profile?: { full_name?: string | null; email?: string | null }; roles?: string[] } | null;
+}) {
   return (
     <div className="border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 lg:px-6">
@@ -475,10 +523,29 @@ function NavButton({
 function MetricGrid({ metrics }: { metrics: Record<string, number> }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <Metric label="Pending payouts" value={String(metrics.pendingPayouts ?? 0)} sub="Open requests" />
-      <Metric label="Completed today" value={String(metrics.completedToday ?? 0)} sub="Paid since midnight" tone="success" />
-      <Metric label="Awaiting approval" value={String(metrics.awaitingOwnerApproval ?? 0)} sub="Owner action needed" tone="warning" />
-      <Metric label="Total payouts today" value={fmtUSD(metrics.totalPayoutsToday ?? 0)} sub="Actual paid amount" tone="success" />
+      <Metric
+        label="Pending payouts"
+        value={String(metrics.pendingPayouts ?? 0)}
+        sub="Open requests"
+      />
+      <Metric
+        label="Completed today"
+        value={String(metrics.completedToday ?? 0)}
+        sub="Paid since midnight"
+        tone="success"
+      />
+      <Metric
+        label="Awaiting approval"
+        value={String(metrics.awaitingOwnerApproval ?? 0)}
+        sub="Owner action needed"
+        tone="warning"
+      />
+      <Metric
+        label="Total payouts today"
+        value={fmtUSD(metrics.totalPayoutsToday ?? 0)}
+        sub="Actual paid amount"
+        tone="success"
+      />
     </div>
   );
 }
@@ -748,76 +815,113 @@ function PayoutTable({
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={compact ? 8 : 9} className="py-10 text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={compact ? 8 : 9}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
                     Loading payouts...
                   </TableCell>
                 </TableRow>
               ) : rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={compact ? 8 : 9} className="py-10 text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={compact ? 8 : 9}
+                    className="py-10 text-center text-sm text-muted-foreground"
+                  >
                     No payout records found.
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{shortId(row.id)}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{displayCustomer(row)}</div>
-                      <div className="text-[11px] text-muted-foreground">{typeLabel(row.customer_type)}</div>
-                    </TableCell>
-                    <TableCell className="max-w-[180px] truncate">{row.brand_page || "-"}</TableCell>
-                    <TableCell>
-                      <MethodBadge value={String(row.payment_method_name || "Manual")} />
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums text-warning">
-                      {fmtUSD(row.amount_requested ?? row.amount)}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={row.status} />
-                    </TableCell>
-                    {!compact && (
-                      <TableCell className="text-xs text-muted-foreground">
-                        <div>Created: {staffName(row.created_staff, row.created_by)}</div>
-                        <div>Processed: {staffName(row.processed_staff, row.processed_by)}</div>
+                rows.map((row) => {
+                  const cspayPending = row.status === "pending" && Boolean(row.cspay_order_id);
+                  return (
+                    <TableRow key={row.id}>
+                      <TableCell className="font-mono text-xs">{shortId(row.id)}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{displayCustomer(row)}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {typeLabel(row.customer_type)}
+                        </div>
                       </TableCell>
-                    )}
-                    <TableCell className="text-right text-xs text-muted-foreground">
-                      <div>{fmtRelative(row.created_at)}</div>
-                      <div>{fmtDateTime(row.processed_at || row.created_at)}</div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-1">
-                        {row.status === "awaiting_approval" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 border-warning/30 text-warning hover:bg-warning/10"
-                            disabled={!isSuperAdmin || approving}
-                            onClick={() => onApprove(row)}
-                            title={!isSuperAdmin ? "Super Admin only" : "Approve payout"}
-                          >
-                            <ShieldCheck className="size-3.5" /> Approve
-                          </Button>
+                      <TableCell className="max-w-[180px] truncate">
+                        {row.brand_page || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <MethodBadge value={String(row.payment_method_name || "Manual")} />
+                        {row.cspay_pay_way && (
+                          <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                            CSPay {row.cspay_pay_way}
+                          </div>
                         )}
-                        {["pending", "ready_to_process", "awaiting_approval"].includes(row.status) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8"
-                            disabled={!canManage || (row.status === "awaiting_approval" && !isSuperAdmin)}
-                            onClick={() => onSelectProcess(row)}
-                          >
-                            Process
-                          </Button>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold tabular-nums text-warning">
+                        {fmtUSD(row.amount_requested ?? row.amount)}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={row.status} />
+                        {row.cspay_order_id && (
+                          <div className="mt-1 max-w-[160px] truncate font-mono text-[10px] text-muted-foreground">
+                            {row.cspay_provider_status || "submitted"} / {row.cspay_order_id}
+                          </div>
                         )}
-                        {row.status === "paid" && (
-                          <span className="text-xs text-success">{fmtUSD(row.actual_amount_paid)}</span>
+                        {row.cspay_error && (
+                          <div className="mt-1 max-w-[180px] truncate text-[10px] text-destructive">
+                            {row.cspay_error}
+                          </div>
                         )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      </TableCell>
+                      {!compact && (
+                        <TableCell className="text-xs text-muted-foreground">
+                          <div>Created: {staffName(row.created_staff, row.created_by)}</div>
+                          <div>Processed: {staffName(row.processed_staff, row.processed_by)}</div>
+                        </TableCell>
+                      )}
+                      <TableCell className="text-right text-xs text-muted-foreground">
+                        <div>{fmtRelative(row.created_at)}</div>
+                        <div>{fmtDateTime(row.processed_at || row.created_at)}</div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {row.status === "awaiting_approval" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 border-warning/30 text-warning hover:bg-warning/10"
+                              disabled={!isSuperAdmin || approving}
+                              onClick={() => onApprove(row)}
+                              title={!isSuperAdmin ? "Super Admin only" : "Approve payout"}
+                            >
+                              <ShieldCheck className="size-3.5" /> Approve
+                            </Button>
+                          )}
+                          {["ready_to_process", "awaiting_approval"].includes(row.status) &&
+                            !row.cspay_order_id && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8"
+                                disabled={
+                                  !canManage ||
+                                  (row.status === "awaiting_approval" && !isSuperAdmin)
+                                }
+                                onClick={() => onSelectProcess(row)}
+                              >
+                                Process
+                              </Button>
+                            )}
+                          {cspayPending && (
+                            <span className="text-xs text-warning">CSPay pending</span>
+                          )}
+                          {row.status === "paid" && (
+                            <span className="text-xs text-success">
+                              {fmtUSD(row.actual_amount_paid)}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -833,20 +937,22 @@ function ProcessPanel({
   setForm,
   loading,
   onClose,
-  onSubmit,
+  onSend,
+  onMark,
 }: {
   row: PayoutRow | null;
   form: ProcessState;
   setForm: React.Dispatch<React.SetStateAction<ProcessState>>;
   loading: boolean;
   onClose: () => void;
-  onSubmit: (status: "paid" | "failed" | "rejected") => void;
+  onSend: () => void;
+  onMark: (status: "failed" | "rejected") => void;
 }) {
   if (!row) return null;
-  const hasPaidDetails = Number(form.actualAmount) > 0 && form.referenceNumber.trim().length > 0;
-  const paidHelp = hasPaidDetails
-    ? "Ready to mark paid."
-    : "Actual amount and transaction/reference number are required before marking paid.";
+  const hasSendDetails = Number(form.actualAmount) > 0;
+  const sendHelp = hasSendDetails
+    ? "Ready to submit to CSPay. The payout will stay pending until CSPay confirms it."
+    : "Amount is required before sending through CSPay.";
   return (
     <Card className="border-warning/30 bg-card/95 shadow-[0_0_36px_-28px_rgba(255,215,109,.9)]">
       <CardContent className="space-y-4 p-5">
@@ -864,36 +970,24 @@ function ProcessPanel({
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Field label="Actual amount paid *">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Amount to send through CSPay *">
             <Input
               type="number"
               min="0"
               step="0.01"
               value={form.actualAmount}
               onChange={(event) => setProcessValue(setForm, "actualAmount", event.target.value)}
-              placeholder="Required for Paid"
+              placeholder="Required"
               aria-invalid={Number(form.actualAmount) <= 0}
             />
           </Field>
-          <Field label="Transaction/reference number *">
+          <Field label="Optional proof / attachment link">
             <Input
-              value={form.referenceNumber}
-              onChange={(event) => setProcessValue(setForm, "referenceNumber", event.target.value)}
-              placeholder="Required for Paid"
-              aria-invalid={!form.referenceNumber.trim()}
+              value={form.proofUrl}
+              onChange={(event) => setProcessValue(setForm, "proofUrl", event.target.value)}
+              placeholder="Optional URL"
             />
-          </Field>
-          <Field label="Payment screenshot link">
-            <div className="relative">
-              <Upload className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                value={form.proofUrl}
-                onChange={(event) => setProcessValue(setForm, "proofUrl", event.target.value)}
-                placeholder="Optional URL"
-              />
-            </div>
           </Field>
         </div>
         <Field label="Processing note">
@@ -906,36 +1000,36 @@ function ProcessPanel({
         <div
           className={cn(
             "rounded-lg border px-3 py-2 text-sm",
-            hasPaidDetails
+            hasSendDetails
               ? "border-success/25 bg-success/10 text-success"
               : "border-warning/30 bg-warning/10 text-warning",
           )}
         >
-          {paidHelp}
+          {sendHelp}
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button
             variant="outline"
             className="border-destructive/30 text-destructive hover:bg-destructive/10"
             disabled={loading}
-            onClick={() => onSubmit("rejected")}
+            onClick={() => onMark("rejected")}
           >
             <XCircle className="size-4" /> Reject
           </Button>
-          <Button variant="outline" disabled={loading} onClick={() => onSubmit("failed")}>
+          <Button variant="outline" disabled={loading} onClick={() => onMark("failed")}>
             <AlertTriangle className="size-4" /> Failed
           </Button>
           <Button
-            disabled={loading || !hasPaidDetails}
+            disabled={loading || !hasSendDetails}
             onClick={() => {
-              if (!hasPaidDetails) {
-                toast.error("Enter actual amount and transaction/reference number first");
+              if (!hasSendDetails) {
+                toast.error("Enter amount first");
                 return;
               }
-              onSubmit("paid");
+              onSend();
             }}
           >
-            <Check className="size-4" /> Mark Paid
+            <Send className="size-4" /> Send via CSPay
           </Button>
         </div>
       </CardContent>
@@ -1059,7 +1153,9 @@ function ActivityPanel({
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="font-medium">{displayCustomer(row)}</div>
-                  <div className="text-xs text-muted-foreground">{row.brand_page || "Cosmo Stakes"}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {row.brand_page || "Cosmo Stakes"}
+                  </div>
                 </div>
                 <StatusBadge status={row.status} />
               </div>
@@ -1068,7 +1164,9 @@ function ActivityPanel({
               </div>
             </div>
           ))}
-          {rows.length === 0 && <p className="text-sm text-muted-foreground">No open payouts right now.</p>}
+          {rows.length === 0 && (
+            <p className="text-sm text-muted-foreground">No open payouts right now.</p>
+          )}
         </CardContent>
       </Card>
       <Card className="border-border/80 bg-card/90">
@@ -1080,10 +1178,14 @@ function ActivityPanel({
           {notifications.map((item) => (
             <div key={item.id} className="rounded-lg border border-border bg-background/40 p-3">
               <div className="text-sm font-medium">{item.title}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{fmtRelative(item.created_at)}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {fmtRelative(item.created_at)}
+              </div>
             </div>
           ))}
-          {notifications.length === 0 && <p className="text-sm text-muted-foreground">No payout alerts yet.</p>}
+          {notifications.length === 0 && (
+            <p className="text-sm text-muted-foreground">No payout alerts yet.</p>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -1143,7 +1245,9 @@ function NotificationsView({
                       {item.email_status.replace(/_/g, " ")}
                     </Badge>
                   </div>
-                  <div className="mt-2 text-xs text-muted-foreground">{fmtDateTime(item.created_at)}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {fmtDateTime(item.created_at)}
+                  </div>
                 </div>
               ))
             )}
@@ -1236,7 +1340,10 @@ function StatusBadge({ status }: { status: PayoutStatus }) {
   } satisfies Record<PayoutStatus, [string, string]>;
   const [label, className] = config[status] ?? config.pending;
   return (
-    <Badge variant="outline" className={cn("whitespace-nowrap text-[10px] uppercase tracking-wider", className)}>
+    <Badge
+      variant="outline"
+      className={cn("whitespace-nowrap text-[10px] uppercase tracking-wider", className)}
+    >
       {label}
     </Badge>
   );
@@ -1311,7 +1418,10 @@ function filterHistory(rows: PayoutRow[], filters: HistoryFilters) {
   return rows.filter((row) => {
     const customer = displayCustomer(row).toLowerCase();
     const brand = String(row.brand_page ?? "").toLowerCase();
-    const staff = [staffName(row.created_staff, row.created_by), staffName(row.processed_staff, row.processed_by)]
+    const staff = [
+      staffName(row.created_staff, row.created_by),
+      staffName(row.processed_staff, row.processed_by),
+    ]
       .join(" ")
       .toLowerCase();
     const date = row.created_at?.slice(0, 10);
@@ -1334,7 +1444,6 @@ function openProcess(
   setSelectedRow(row);
   setProcessForm({
     actualAmount: String(row.actual_amount_paid ?? row.amount_requested ?? row.amount ?? ""),
-    referenceNumber: row.reference_number ?? "",
     proofUrl: row.proof_screenshot_url ?? "",
     note: row.processing_note ?? "",
   });

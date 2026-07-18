@@ -49,6 +49,7 @@ import { Route as ApiPublicJuwaBalanceRouteImport } from './routes/api/public/ju
 import { Route as ApiPublicChatStartRouteImport } from './routes/api/public/chat/start'
 import { Route as ApiPublicChatMessageRouteImport } from './routes/api/public/chat/message'
 import { Route as ApiPublicChatConfigRouteImport } from './routes/api/public/chat/config'
+import { Route as ApiPayoutsCspayWebhookRouteImport } from './routes/api/payouts/cspay/webhook'
 import { Route as ApiPublicChatTicketIdMessagesRouteImport } from './routes/api/public/chat/ticket.$id.messages'
 
 const AuthRoute = AuthRouteImport.update({
@@ -258,6 +259,11 @@ const ApiPublicChatConfigRoute = ApiPublicChatConfigRouteImport.update({
   path: '/api/public/chat/config',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPayoutsCspayWebhookRoute = ApiPayoutsCspayWebhookRouteImport.update({
+  id: '/api/payouts/cspay/webhook',
+  path: '/api/payouts/cspay/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicChatTicketIdMessagesRoute =
   ApiPublicChatTicketIdMessagesRouteImport.update({
     id: '/api/public/chat/ticket/$id/messages',
@@ -296,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/wallet-tools': typeof AuthenticatedWalletToolsRoute
   '/api/meta/webhook': typeof ApiMetaWebhookRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/payouts/cspay/webhook': typeof ApiPayoutsCspayWebhookRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
   '/api/public/chat/start': typeof ApiPublicChatStartRoute
@@ -338,6 +345,7 @@ export interface FileRoutesByTo {
   '/wallet-tools': typeof AuthenticatedWalletToolsRoute
   '/api/meta/webhook': typeof ApiMetaWebhookRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/payouts/cspay/webhook': typeof ApiPayoutsCspayWebhookRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
   '/api/public/chat/start': typeof ApiPublicChatStartRoute
@@ -382,6 +390,7 @@ export interface FileRoutesById {
   '/_authenticated/wallet-tools': typeof AuthenticatedWalletToolsRoute
   '/api/meta/webhook': typeof ApiMetaWebhookRoute
   '/api/public/outbound-ip': typeof ApiPublicOutboundIpRoute
+  '/api/payouts/cspay/webhook': typeof ApiPayoutsCspayWebhookRoute
   '/api/public/chat/config': typeof ApiPublicChatConfigRoute
   '/api/public/chat/message': typeof ApiPublicChatMessageRoute
   '/api/public/chat/start': typeof ApiPublicChatStartRoute
@@ -426,6 +435,7 @@ export interface FileRouteTypes {
     | '/wallet-tools'
     | '/api/meta/webhook'
     | '/api/public/outbound-ip'
+    | '/api/payouts/cspay/webhook'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
     | '/api/public/chat/start'
@@ -468,6 +478,7 @@ export interface FileRouteTypes {
     | '/wallet-tools'
     | '/api/meta/webhook'
     | '/api/public/outbound-ip'
+    | '/api/payouts/cspay/webhook'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
     | '/api/public/chat/start'
@@ -511,6 +522,7 @@ export interface FileRouteTypes {
     | '/_authenticated/wallet-tools'
     | '/api/meta/webhook'
     | '/api/public/outbound-ip'
+    | '/api/payouts/cspay/webhook'
     | '/api/public/chat/config'
     | '/api/public/chat/message'
     | '/api/public/chat/start'
@@ -529,6 +541,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ApiMetaWebhookRoute: typeof ApiMetaWebhookRoute
   ApiPublicOutboundIpRoute: typeof ApiPublicOutboundIpRoute
+  ApiPayoutsCspayWebhookRoute: typeof ApiPayoutsCspayWebhookRoute
   ApiPublicChatConfigRoute: typeof ApiPublicChatConfigRoute
   ApiPublicChatMessageRoute: typeof ApiPublicChatMessageRoute
   ApiPublicChatStartRoute: typeof ApiPublicChatStartRoute
@@ -823,6 +836,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicChatConfigRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/payouts/cspay/webhook': {
+      id: '/api/payouts/cspay/webhook'
+      path: '/api/payouts/cspay/webhook'
+      fullPath: '/api/payouts/cspay/webhook'
+      preLoaderRoute: typeof ApiPayoutsCspayWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/chat/ticket/$id/messages': {
       id: '/api/public/chat/ticket/$id/messages'
       path: '/api/public/chat/ticket/$id/messages'
@@ -900,6 +920,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ApiMetaWebhookRoute: ApiMetaWebhookRoute,
   ApiPublicOutboundIpRoute: ApiPublicOutboundIpRoute,
+  ApiPayoutsCspayWebhookRoute: ApiPayoutsCspayWebhookRoute,
   ApiPublicChatConfigRoute: ApiPublicChatConfigRoute,
   ApiPublicChatMessageRoute: ApiPublicChatMessageRoute,
   ApiPublicChatStartRoute: ApiPublicChatStartRoute,
