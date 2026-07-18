@@ -843,6 +843,10 @@ function ProcessPanel({
   onSubmit: (status: "paid" | "failed" | "rejected") => void;
 }) {
   if (!row) return null;
+  const hasPaidDetails = Number(form.actualAmount) > 0 && form.referenceNumber.trim().length > 0;
+  const paidHelp = hasPaidDetails
+    ? "Ready to mark paid."
+    : "Actual amount and transaction/reference number are required before marking paid.";
   return (
     <Card className="border-warning/30 bg-card/95 shadow-[0_0_36px_-28px_rgba(255,215,109,.9)]">
       <CardContent className="space-y-4 p-5">
@@ -861,7 +865,7 @@ function ProcessPanel({
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Field label="Actual amount paid">
+          <Field label="Actual amount paid *">
             <Input
               type="number"
               min="0"
@@ -869,13 +873,15 @@ function ProcessPanel({
               value={form.actualAmount}
               onChange={(event) => setProcessValue(setForm, "actualAmount", event.target.value)}
               placeholder="Required for Paid"
+              aria-invalid={Number(form.actualAmount) <= 0}
             />
           </Field>
-          <Field label="Transaction/reference number">
+          <Field label="Transaction/reference number *">
             <Input
               value={form.referenceNumber}
               onChange={(event) => setProcessValue(setForm, "referenceNumber", event.target.value)}
               placeholder="Required for Paid"
+              aria-invalid={!form.referenceNumber.trim()}
             />
           </Field>
           <Field label="Payment screenshot link">
@@ -897,6 +903,16 @@ function ProcessPanel({
             placeholder="Internal processing note"
           />
         </Field>
+        <div
+          className={cn(
+            "rounded-lg border px-3 py-2 text-sm",
+            hasPaidDetails
+              ? "border-success/25 bg-success/10 text-success"
+              : "border-warning/30 bg-warning/10 text-warning",
+          )}
+        >
+          {paidHelp}
+        </div>
         <div className="flex flex-wrap justify-end gap-2">
           <Button
             variant="outline"
@@ -909,7 +925,16 @@ function ProcessPanel({
           <Button variant="outline" disabled={loading} onClick={() => onSubmit("failed")}>
             <AlertTriangle className="size-4" /> Failed
           </Button>
-          <Button disabled={loading} onClick={() => onSubmit("paid")}>
+          <Button
+            disabled={loading || !hasPaidDetails}
+            onClick={() => {
+              if (!hasPaidDetails) {
+                toast.error("Enter actual amount and transaction/reference number first");
+                return;
+              }
+              onSubmit("paid");
+            }}
+          >
             <Check className="size-4" /> Mark Paid
           </Button>
         </div>
@@ -1072,13 +1097,19 @@ function NotificationsView({
   notifications: PayoutNotification[];
   loading: boolean;
 }) {
+  const latestEmailStatus = notifications.find((item) => item.email_status)?.email_status;
+  const emailDetail =
+    latestEmailStatus === "not_configured"
+      ? "Owner email is not configured yet. In-app alerts are saving, but emails are not being sent."
+      : "Owner emails are sent when RESEND_API_KEY and PAYOUT_FROM_EMAIL are configured.";
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-3">
         <NotificationCard
           title="Email"
-          detail="Owner emails are sent when RESEND_API_KEY and PAYOUT_FROM_EMAIL are configured."
+          detail={emailDetail}
           icon={Mail}
+          tone={latestEmailStatus === "not_configured" ? "warning" : undefined}
         />
         <NotificationCard
           title="Browser"
@@ -1128,14 +1159,21 @@ function NotificationCard({
   detail,
   icon: Icon,
   action,
+  tone,
 }: {
   title: string;
   detail: string;
   icon: typeof Bell;
   action?: boolean;
+  tone?: "warning";
 }) {
   return (
-    <Card className="border-border/80 bg-card/90">
+    <Card
+      className={cn(
+        "border-border/80 bg-card/90",
+        tone === "warning" && "border-warning/30 bg-warning/10",
+      )}
+    >
       <CardContent className="space-y-3 p-5">
         <div className="flex items-center gap-2">
           <Icon className="size-4 text-warning" />
