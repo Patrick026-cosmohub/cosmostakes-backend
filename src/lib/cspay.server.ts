@@ -15,6 +15,16 @@ export type CspayPayoutResult = {
   raw: unknown;
 };
 
+export type CspayPayoutStatusResult = {
+  payOrderId: string;
+  mchOrderNo: string;
+  amount: number;
+  state: string;
+  notifyState: string;
+  feeAmount: number | null;
+  raw: unknown;
+};
+
 const PAYOUT_METHODS: Record<string, CspayPayoutMethod> = {
   cashapp: { payWay: "STRIPE_PC", label: "Cash App", tagLike: true },
   "cash app": { payWay: "STRIPE_PC", label: "Cash App", tagLike: true },
@@ -50,6 +60,34 @@ function parseResponseData(data: any): any {
     }
   }
   return data?.data ?? {};
+}
+
+async function postCspaySigned(path: string, body: Record<string, string | number>) {
+  const { mchNo, signKey, apiBase } = getConfig();
+  const signedBody: Record<string, string | number> = {
+    mchNo,
+    signType: "MD5",
+    timestamp: Date.now(),
+    ...body,
+  };
+  signedBody.sign = cspaySign(signedBody, signKey);
+
+  const response = await fetch(`${apiBase}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(signedBody),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) {
+    throw new Error(`CSPay ${path} HTTP ${response.status}: ${await response.text()}`);
+  }
+
+  const payload = (await response.json()) as any;
+  if (payload.code !== 0) {
+    throw new Error(`CSPay ${path} failed: ${payload.msg || JSON.stringify(payload)}`);
+  }
+
+  return { payload, data: parseResponseData(payload) };
 }
 
 export function cspaySign(
@@ -145,6 +183,20 @@ export async function createCspayPayout(params: {
     mchOrderNo: params.mchOrderNo,
     payOrderId: String(data.payOrderId || data.orderId || ""),
     amount: Number(data.amount || params.amountCents),
+    raw: payload,
+  };
+}
+
+export async function queryCspayPayout(payOrderId: string): Promise<CspayPayoutStatusResult> {
+  const { payload, data } = await postCspaySigned("/api/pay/queryPaymentOrder", { payOrderId });
+  return {
+    payOrderId: String(data.payOrderId || payOrderId),
+    mchOrderNo: String(data.mchOrderNo || ""),
+    amount: Number(data.amount || 0),
+    state: String(data.state ?? ""),
+    notifyState: String(data.notifyState ?? ""),
+    feeAmount:
+      data.feeAmount === null || data.feeAmount === undefined ? null : Number(data.feeAmount),
     raw: payload,
   };
 }

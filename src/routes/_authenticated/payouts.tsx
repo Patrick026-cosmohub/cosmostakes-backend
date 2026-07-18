@@ -11,6 +11,7 @@ import {
   FileCheck2,
   History,
   Mail,
+  RefreshCw,
   Search,
   Send,
   ShieldCheck,
@@ -26,6 +27,7 @@ import {
   listPayoutNotifications,
   listPayoutRequests,
   processPayoutViaCspay,
+  syncPayoutCspayStatus,
   updatePayoutStatus,
 } from "@/lib/payment-ops.functions";
 import { Badge } from "@/components/ui/badge";
@@ -195,6 +197,7 @@ function PayoutsPage() {
   const createPayout = useServerFn(createPayoutRequest);
   const approvePayout = useServerFn(approvePayoutRequest);
   const sendCspayPayout = useServerFn(processPayoutViaCspay);
+  const syncCspayPayout = useServerFn(syncPayoutCspayStatus);
   const setPayoutStatus = useServerFn(updatePayoutStatus);
   const qc = useQueryClient();
 
@@ -330,6 +333,20 @@ function PayoutsPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const syncCspayMutation = useMutation({
+    mutationFn: (row: PayoutRow) => syncCspayPayout({ data: { id: row.id } }),
+    onSuccess: (data, row) => {
+      const status = data?.status ?? "pending";
+      const message =
+        status === "pending"
+          ? `${displayCustomer(row)} is still pending at CSPay`
+          : `${displayCustomer(row)} synced as ${status}`;
+      toast.success(message);
+      refreshAll();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <PortalHeader me={meQ.data as any} />
@@ -381,7 +398,9 @@ function PayoutsPage() {
                   isSuperAdmin={isSuperAdmin}
                   onSelectProcess={(row) => openProcess(row, setSelectedRow, setProcessForm)}
                   onApprove={(row) => approveMutation.mutate(row.id)}
+                  onSync={(row) => syncCspayMutation.mutate(row)}
                   approving={approveMutation.isPending}
+                  syncingId={syncCspayMutation.variables?.id ?? null}
                 />
                 <ActivityPanel rows={pendingRows} notifications={notifications.slice(0, 5)} />
               </div>
@@ -419,7 +438,9 @@ function PayoutsPage() {
                 isSuperAdmin={isSuperAdmin}
                 onSelectProcess={(row) => openProcess(row, setSelectedRow, setProcessForm)}
                 onApprove={(row) => approveMutation.mutate(row.id)}
+                onSync={(row) => syncCspayMutation.mutate(row)}
                 approving={approveMutation.isPending}
+                syncingId={syncCspayMutation.variables?.id ?? null}
               />
               <ProcessPanel
                 row={selectedRow}
@@ -445,7 +466,9 @@ function PayoutsPage() {
               isSuperAdmin={isSuperAdmin}
               onSelectProcess={(row) => openProcess(row, setSelectedRow, setProcessForm)}
               onApprove={(row) => approveMutation.mutate(row.id)}
+              onSync={(row) => syncCspayMutation.mutate(row)}
               approving={approveMutation.isPending}
+              syncingId={syncCspayMutation.variables?.id ?? null}
             />
           )}
 
@@ -780,7 +803,9 @@ function PayoutTable({
   isSuperAdmin,
   onSelectProcess,
   onApprove,
+  onSync,
   approving,
+  syncingId,
   compact,
 }: {
   title: string;
@@ -790,7 +815,9 @@ function PayoutTable({
   isSuperAdmin: boolean;
   onSelectProcess: (row: PayoutRow) => void;
   onApprove: (row: PayoutRow) => void;
+  onSync: (row: PayoutRow) => void;
   approving: boolean;
+  syncingId: string | null;
   compact?: boolean;
 }) {
   return (
@@ -910,7 +937,19 @@ function PayoutTable({
                               </Button>
                             )}
                           {cspayPending && (
-                            <span className="text-xs text-warning">CSPay pending</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 border-warning/30 text-warning hover:bg-warning/10"
+                              disabled={!canManage || syncingId === row.id}
+                              onClick={() => onSync(row)}
+                              title="Sync this payout with CSPay"
+                            >
+                              <RefreshCw
+                                className={cn("size-3.5", syncingId === row.id && "animate-spin")}
+                              />
+                              {syncingId === row.id ? "Syncing" : "Sync CSPay"}
+                            </Button>
                           )}
                           {row.status === "paid" && (
                             <span className="text-xs text-success">
@@ -1046,7 +1085,9 @@ function HistoryView({
   isSuperAdmin,
   onSelectProcess,
   onApprove,
+  onSync,
   approving,
+  syncingId,
 }: {
   rows: PayoutRow[];
   loading: boolean;
@@ -1056,7 +1097,9 @@ function HistoryView({
   isSuperAdmin: boolean;
   onSelectProcess: (row: PayoutRow) => void;
   onApprove: (row: PayoutRow) => void;
+  onSync: (row: PayoutRow) => void;
   approving: boolean;
+  syncingId: string | null;
 }) {
   return (
     <div className="space-y-5">
@@ -1127,7 +1170,9 @@ function HistoryView({
         isSuperAdmin={isSuperAdmin}
         onSelectProcess={onSelectProcess}
         onApprove={onApprove}
+        onSync={onSync}
         approving={approving}
+        syncingId={syncingId}
       />
     </div>
   );

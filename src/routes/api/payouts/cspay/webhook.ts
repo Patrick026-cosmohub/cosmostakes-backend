@@ -20,8 +20,10 @@ async function parsePayload(request: Request) {
 function payoutState(raw: Record<string, string>) {
   const state = raw.state || raw.tradeState || raw.trade_state || raw.status || "";
   const normalized = String(state).trim().toLowerCase();
-  if (["2", "success", "paid", "completed"].includes(normalized)) return "paid";
-  if (["3", "failed", "closed", "cancelled", "canceled"].includes(normalized)) return "failed";
+  if (["2", "7", "success", "paid", "completed"].includes(normalized)) return "paid";
+  if (["3", "4", "5", "6", "failed", "closed", "cancelled", "canceled", "refunded"].includes(normalized)) {
+    return "failed";
+  }
   return "pending";
 }
 

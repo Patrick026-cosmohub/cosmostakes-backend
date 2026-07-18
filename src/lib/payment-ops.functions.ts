@@ -212,6 +212,15 @@ async function notifyOwners(
 const payoutSelect =
   "id,customer_type,customer_name,player_name,brand_page,payment_method_name,recipient_identifier,account_holder_name,recipient_details,amount,amount_requested,actual_amount_paid,reference_number,proof_screenshot_url,staff_note,note,processing_note,status,approval_required,owner_approved_by,owner_approved_at,created_by,processed_by,processed_at,created_at,updated_at,cspay_mch_order_no,cspay_order_id,cspay_pay_way,cspay_provider_status,cspay_error,cspay_sent_at,cspay_checked_at";
 
+function statusFromCspayState(state: string | number | null | undefined) {
+  const normalized = String(state ?? "").trim().toLowerCase();
+  if (["2", "7", "success", "paid", "completed"].includes(normalized)) return "paid";
+  if (["3", "4", "5", "6", "failed", "closed", "cancelled", "canceled", "refunded"].includes(normalized)) {
+    return "failed";
+  }
+  return "pending";
+}
+
 export const listPayoutRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -629,6 +638,113 @@ export const processPayoutViaCspay = createServerFn({ method: "POST" })
       });
       throw new Error(message);
     }
+  });
+
+export const syncPayoutCspayStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    assertPermission(context, "payouts.manage");
+    const { supabase, userId } = context;
+    const { data: payout, error: fetchError } = await supabase
+      .from("payout_requests" as never)
+      .select(
+        "id,status,customer_name,amount_requested,actual_amount_paid,cspay_order_id,cspay_provider_status",
+      )
+      .eq("id", data.id)
+      .maybeSingle();
+    if (fetchError) throw new Error(fetchError.message);
+    if (!payout) throw new Error("Payout not found");
+
+    const row = payout as {
+      id: string;
+      status: string;
+      customer_name?: string;
+      amount_requested?: number | string;
+      actual_amount_paid?: number | string | null;
+      cspay_order_id?: string | null;
+      cspay_provider_status?: string | null;
+    };
+    if (!row.cspay_order_id) throw new Error("This payout has not been sent to CSPay yet");
+
+    const { queryCspayPayout } = await import("@/lib/cspay.server");
+    const result = await queryCspayPayout(row.cspay_order_id);
+    const providerState = result.state || result.notifyState || "unknown";
+    const nextStatus = statusFromCspayState(providerState);
+    const now = new Date().toISOString();
+    const actualAmount =
+      result.amount > 0 ? Number((result.amount / 100).toFixed(2)) : row.actual_amount_paid;
+    const statusChanged = row.status !== nextStatus && nextStatus !== "pending";
+    const update =
+      nextStatus === "paid"
+        ? {
+            status: "paid",
+            actual_amount_paid: actualAmount ?? row.amount_requested,
+            reference_number: result.payOrderId,
+            cspay_provider_status: providerState,
+            cspay_payload: result.raw,
+            cspay_error: null,
+            cspay_checked_at: now,
+            processed_at: now,
+          }
+        : nextStatus === "failed"
+          ? {
+              status: "failed",
+              cspay_provider_status: providerState,
+              cspay_payload: result.raw,
+              cspay_error: `CSPay state ${providerState}`,
+              cspay_checked_at: now,
+              processed_at: now,
+            }
+          : {
+              status: "pending",
+              cspay_provider_status: providerState,
+              cspay_payload: result.raw,
+              cspay_error: null,
+              cspay_checked_at: now,
+            };
+
+    const { error } = await supabase
+      .from("payout_requests" as never)
+      .update(update as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+
+    await supabase.from("audit_logs").insert({
+      staff_id: userId,
+      action: "payout.cspay_sync",
+      entity_type: "payout_request",
+      entity_id: data.id,
+      metadata: {
+        previous_status: row.status,
+        next_status: nextStatus,
+        cspay_order_id: row.cspay_order_id,
+        cspay_provider_status: providerState,
+      },
+    });
+
+    if (statusChanged) {
+      await notifyOwners(supabase, {
+        payoutId: data.id,
+        eventType: nextStatus === "paid" ? "completed" : "failed",
+        title:
+          nextStatus === "paid"
+            ? `CSPay payout completed: ${row.customer_name}`
+            : `CSPay payout failed: ${row.customer_name}`,
+        body:
+          nextStatus === "paid"
+            ? `${row.customer_name} was confirmed paid by CSPay.`
+            : `${row.customer_name} was marked failed by CSPay with state ${providerState}.`,
+        amount: Number(actualAmount ?? row.amount_requested ?? 0),
+      });
+    }
+
+    return {
+      ok: true,
+      status: nextStatus,
+      cspayProviderStatus: providerState,
+      cspayOrderId: result.payOrderId,
+    };
   });
 
 export const updatePayoutStatus = createServerFn({ method: "POST" })
