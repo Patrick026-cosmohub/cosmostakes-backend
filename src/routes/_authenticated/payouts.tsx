@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import type React from "react";
@@ -10,6 +10,7 @@ import {
   Clock3,
   FileCheck2,
   History,
+  LogOut,
   Mail,
   RefreshCw,
   Search,
@@ -30,6 +31,7 @@ import {
   syncPayoutCspayStatus,
   updatePayoutStatus,
 } from "@/lib/payment-ops.functions";
+import { signOutStaff } from "@/lib/staff-auth.functions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +47,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { fmtDateTime, fmtRelative, fmtUSD, type Role } from "@/lib/format";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -199,7 +202,9 @@ function PayoutsPage() {
   const sendCspayPayout = useServerFn(processPayoutViaCspay);
   const syncCspayPayout = useServerFn(syncPayoutCspayStatus);
   const setPayoutStatus = useServerFn(updatePayoutStatus);
+  const signOutFn = useServerFn(signOutStaff);
   const qc = useQueryClient();
+  const router = useRouter();
 
   const [view, setView] = useState<PortalView>("dashboard");
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -250,6 +255,15 @@ function PayoutsPage() {
     qc.invalidateQueries({ queryKey: ["payout-requests"] });
     qc.invalidateQueries({ queryKey: ["payout-notifications"] });
   };
+
+  async function signOut() {
+    try {
+      await signOutFn();
+    } finally {
+      await supabase.auth.signOut();
+      router.navigate({ to: "/auth" });
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -349,7 +363,7 @@ function PayoutsPage() {
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
-      <PortalHeader me={meQ.data as any} />
+      <PortalHeader me={meQ.data as any} onSignOut={signOut} />
       <div className="mx-auto grid w-full max-w-[1500px] gap-5 px-4 py-5 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-6 lg:px-6 lg:py-6 2xl:px-8">
         <aside className="flex w-full gap-2 overflow-x-auto rounded-xl border border-border/80 bg-card/55 p-2 lg:block lg:space-y-2 lg:overflow-visible lg:border-0 lg:bg-transparent lg:p-0">
           <NavButton
@@ -483,8 +497,10 @@ function PayoutsPage() {
 
 function PortalHeader({
   me,
+  onSignOut,
 }: {
   me: { profile?: { full_name?: string | null; email?: string | null }; roles?: string[] } | null;
+  onSignOut: () => void | Promise<void>;
 }) {
   return (
     <div className="border-b border-border bg-background/80 backdrop-blur">
@@ -509,6 +525,16 @@ function PortalHeader({
           <div className="max-w-full truncate rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
             {me?.profile?.full_name || me?.profile?.email || "Staff"}
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-full border-destructive/30 px-3 text-xs text-destructive hover:bg-destructive/10"
+            onClick={onSignOut}
+          >
+            <LogOut className="size-3.5" />
+            Logout
+          </Button>
         </div>
       </div>
     </div>
