@@ -107,6 +107,12 @@ function AuthedLayout() {
     }
   }, [pathname, payoutHost, router]);
 
+  useEffect(() => {
+    if (payoutHost && me.isError) {
+      window.location.replace("/auth");
+    }
+  }, [me.isError, payoutHost]);
+
   async function signOut() {
     await signOutFn();
     await supabase.auth.signOut();
@@ -121,6 +127,13 @@ function AuthedLayout() {
     );
   }
   if (me.isError) {
+    if (payoutHost) {
+      return (
+        <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">
+          Opening sign in...
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen grid place-items-center px-4 nebula-glow">
         <div className="bg-surface border border-border rounded-xl p-8 max-w-md text-center space-y-4">
@@ -129,8 +142,8 @@ function AuthedLayout() {
           <p className="text-sm text-muted-foreground">
             Your staff session expired or is no longer active.
           </p>
-          <Button type="button" variant="outline" onClick={() => router.navigate({ to: "/auth" })}>
-            Go to sign in
+          <Button type="button" variant="outline" asChild>
+            <a href="/auth">Go to sign in</a>
           </Button>
         </div>
       </div>
