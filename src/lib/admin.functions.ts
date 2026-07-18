@@ -1132,13 +1132,16 @@ export const createStaff = createServerFn({ method: "POST" })
     }
 
     const newId = authUser.user.id;
-    const { error: profileError } = await supabaseAdmin.from("staff_profiles").insert({
-      id: newId,
-      email,
-      username: data.username,
-      full_name: data.full_name,
-      is_active: true,
-    } as never);
+    const { error: profileError } = await supabaseAdmin.from("staff_profiles").upsert(
+      {
+        id: newId,
+        email,
+        username: data.username,
+        full_name: data.full_name,
+        is_active: true,
+      } as never,
+      { onConflict: "id" },
+    );
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(newId).catch(() => {});
       throw new Error(profileError.message);

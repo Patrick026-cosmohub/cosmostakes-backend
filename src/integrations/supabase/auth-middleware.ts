@@ -15,7 +15,7 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
   async ({ next }) => {
     const request = getRequest();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { assertRequestIpAllowed, isPasswordExpired, loadSecurityPolicy } =
+    const { assertRequestIpAllowed, loadSecurityPolicy } =
       await import("@/lib/security-policy.server");
     const policy = await loadSecurityPolicy(supabaseAdmin);
     assertRequestIpAllowed(request, policy);
@@ -90,7 +90,7 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
     const [{ data: profile }, { data: roles }] = await Promise.all([
       supabaseAdmin
         .from("staff_profiles" as never)
-        .select("id,email,username,full_name,is_active,password_updated_at,locked_until")
+        .select("id,email,username,full_name,is_active")
         .eq("id", staffId)
         .maybeSingle(),
       supabaseAdmin
@@ -106,16 +106,6 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
       roleNames.length === 0
     ) {
       throw new Error("Unauthorized: Staff access required");
-    }
-    const profileRow = profile as {
-      password_updated_at?: string | null;
-      locked_until?: string | null;
-    };
-    if (profileRow.locked_until && new Date(profileRow.locked_until).getTime() > Date.now()) {
-      throw new Error("Unauthorized: Staff account locked");
-    }
-    if (isPasswordExpired(profileRow.password_updated_at, policy)) {
-      throw new Error("Unauthorized: Staff password expired");
     }
     if (policy.enforce_2fa_super_admin && roleNames.includes("super_admin")) {
       throw new Error("Unauthorized: Super admin requires Supabase 2FA session");
