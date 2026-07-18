@@ -348,10 +348,10 @@ function PayoutsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <PortalHeader me={meQ.data as any} />
-      <div className="mx-auto grid max-w-7xl gap-5 px-4 py-5 lg:grid-cols-[230px_minmax(0,1fr)] lg:px-6">
-        <aside className="space-y-2">
+      <div className="mx-auto grid w-full max-w-7xl gap-4 px-3 py-4 sm:px-4 lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-5 lg:px-6 lg:py-5">
+        <aside className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:-mx-4 sm:px-4 lg:mx-0 lg:block lg:space-y-2 lg:overflow-visible lg:px-0 lg:pb-0">
           <NavButton
             active={view === "dashboard"}
             onClick={() => setView("dashboard")}
@@ -376,7 +376,7 @@ function PayoutsPage() {
             Notifications
           </NavButton>
 
-          <div className="rounded-xl border border-warning/20 bg-warning/10 p-3 text-xs text-muted-foreground">
+          <div className="hidden rounded-xl border border-warning/20 bg-warning/10 p-3 text-xs text-muted-foreground lg:block">
             <div className="mb-1 flex items-center gap-2 font-semibold text-warning">
               <ShieldCheck className="size-4" />
               Rule locked
@@ -385,11 +385,11 @@ function PayoutsPage() {
           </div>
         </aside>
 
-        <main className="min-w-0 space-y-5">
+        <main className="min-w-0 space-y-4 lg:space-y-5">
           {view === "dashboard" && (
             <>
               <MetricGrid metrics={metrics} />
-              <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-5">
                 <PayoutTable
                   title="Recent activity"
                   rows={recentRows}
@@ -488,18 +488,20 @@ function PortalHeader({
 }) {
   return (
     <div className="border-b border-border bg-background/80 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 lg:px-6">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
         <div className="flex items-center gap-3">
           <img
             src="/cosmo-logo.jpeg"
             alt="Cosmo Stakes"
-            className="size-12 rounded-xl border border-warning/30 object-cover shadow-[0_0_28px_-8px_rgba(255,215,109,.8)]"
+            className="size-10 rounded-xl border border-warning/30 object-cover shadow-[0_0_28px_-8px_rgba(255,215,109,.8)] sm:size-12"
           />
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-warning">
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-warning sm:text-[10px] sm:tracking-[0.24em]">
               payout.cosmostakes.net
             </p>
-            <h1 className="text-xl font-semibold tracking-tight">Staff Payout Portal</h1>
+            <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
+              Staff Payout Portal
+            </h1>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -530,7 +532,7 @@ function NavButton({
     <button
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
+        "flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors lg:w-full",
         active
           ? "border-warning/30 bg-warning/10 text-warning"
           : "border-transparent text-muted-foreground hover:border-border hover:bg-surface",
@@ -538,14 +540,14 @@ function NavButton({
     >
       <Icon className="size-4" />
       <span className="min-w-0 flex-1">{children}</span>
-      {active && <ChevronRight className="size-4" />}
+      {active && <ChevronRight className="hidden size-4 lg:block" />}
     </button>
   );
 }
 
 function MetricGrid({ metrics }: { metrics: Record<string, number> }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
       <Metric
         label="Pending payouts"
         value={String(metrics.pendingPayouts ?? 0)}
@@ -586,13 +588,13 @@ function Metric({
 }) {
   return (
     <Card className="border-border/80 bg-card/90">
-      <CardContent className="p-4">
-        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+      <CardContent className="p-3 sm:p-4">
+        <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground sm:text-[10px] sm:tracking-[0.18em]">
           {label}
         </div>
         <div
           className={cn(
-            "mt-1 text-2xl font-semibold tabular-nums",
+            "mt-1 text-xl font-semibold tabular-nums sm:text-2xl",
             tone === "success" && "text-success",
             tone === "warning" && "text-warning",
           )}
@@ -621,9 +623,9 @@ function NewPayoutForm({
   const amount = Number(form.amount || 0);
   const recipientCopy = RECIPIENT_COPY[form.paymentMethod];
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-5">
       <Card className="overflow-hidden border-border/80 bg-card/90">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-gradient-to-r from-warning/15 via-primary/15 to-transparent px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-gradient-to-r from-warning/15 via-primary/15 to-transparent px-3 py-4 sm:px-5">
           <div>
             <h2 className="font-semibold">New payout</h2>
             <p className="text-xs text-muted-foreground">
@@ -634,7 +636,7 @@ function NewPayoutForm({
             $200 approval rule
           </Badge>
         </div>
-        <CardContent className="p-5">
+        <CardContent className="p-3 sm:p-5">
           <form
             className="space-y-5"
             onSubmit={(event) => {
@@ -687,7 +689,7 @@ function NewPayoutForm({
 
             <div>
               <Label>Payment method</Label>
-              <div className="mt-2 grid gap-2 sm:grid-cols-4">
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {PAYMENT_METHODS.map((method) => (
                   <button
                     key={method.value}
@@ -708,7 +710,7 @@ function NewPayoutForm({
                     >
                       {method.mark}
                     </span>
-                    <span className="min-w-0 truncate text-sm font-semibold">{method.value}</span>
+                    <span className="min-w-0 text-sm font-semibold">{method.value}</span>
                   </button>
                 ))}
               </div>
@@ -773,7 +775,7 @@ function NewPayoutForm({
       </Card>
 
       <Card className="border-border/80 bg-card/90">
-        <CardContent className="space-y-4 p-5">
+        <CardContent className="space-y-4 p-3 sm:p-5">
           <div className="rounded-2xl border border-white/15 bg-gradient-to-br from-primary/35 via-background to-warning/20 p-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-warning">
               Payout preview
@@ -822,9 +824,34 @@ function PayoutTable({
 }) {
   return (
     <Card className="border-border/80 bg-card/90">
-      <CardContent className="space-y-4 p-5">
+      <CardContent className="space-y-4 p-3 sm:p-5">
         {title && <h2 className="font-semibold">{title}</h2>}
-        <div className="overflow-x-auto">
+        <div className="space-y-3 md:hidden">
+          {loading ? (
+            <div className="rounded-lg border border-border bg-background/40 py-8 text-center text-sm text-muted-foreground">
+              Loading payouts...
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="rounded-lg border border-border bg-background/40 py-8 text-center text-sm text-muted-foreground">
+              No payout records found.
+            </div>
+          ) : (
+            rows.map((row) => (
+              <PayoutMobileCard
+                key={row.id}
+                row={row}
+                canManage={canManage}
+                isSuperAdmin={isSuperAdmin}
+                onSelectProcess={onSelectProcess}
+                onApprove={onApprove}
+                onSync={onSync}
+                approving={approving}
+                syncingId={syncingId}
+              />
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -970,6 +997,143 @@ function PayoutTable({
   );
 }
 
+function PayoutMobileCard({
+  row,
+  canManage,
+  isSuperAdmin,
+  onSelectProcess,
+  onApprove,
+  onSync,
+  approving,
+  syncingId,
+}: {
+  row: PayoutRow;
+  canManage: boolean;
+  isSuperAdmin: boolean;
+  onSelectProcess: (row: PayoutRow) => void;
+  onApprove: (row: PayoutRow) => void;
+  onSync: (row: PayoutRow) => void;
+  approving: boolean;
+  syncingId: string | null;
+}) {
+  const cspayPending = row.status === "pending" && Boolean(row.cspay_order_id);
+  const canOpenProcess =
+    ["ready_to_process", "awaiting_approval"].includes(row.status) && !row.cspay_order_id;
+
+  return (
+    <div className="rounded-xl border border-border bg-background/45 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="break-words text-base font-semibold leading-snug">
+            {displayCustomer(row)}
+          </div>
+          <div className="mt-1 text-xs text-muted-foreground">{typeLabel(row.customer_type)}</div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-lg font-semibold tabular-nums text-warning">
+            {fmtUSD(row.amount_requested ?? row.amount)}
+          </div>
+          <div className="mt-1 flex justify-end">
+            <StatusBadge status={row.status} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid gap-2 text-sm">
+        <MobileFact label="Payout ID" value={shortId(row.id)} mono />
+        <MobileFact label="Brand" value={row.brand_page || "-"} />
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-muted-foreground">Method</span>
+          <MethodBadge value={String(row.payment_method_name || "Manual")} />
+        </div>
+        {row.cspay_pay_way && <MobileFact label="CSPay channel" value={row.cspay_pay_way} />}
+        {row.cspay_order_id && (
+          <MobileFact
+            label="CSPay order"
+            value={`${row.cspay_provider_status || "submitted"} / ${row.cspay_order_id}`}
+            mono
+          />
+        )}
+        {row.cspay_error && (
+          <div className="rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            {row.cspay_error}
+          </div>
+        )}
+        <MobileFact label="Created" value={`${fmtRelative(row.created_at)} · ${fmtDateTime(row.created_at)}`} />
+        <MobileFact label="Staff" value={staffName(row.processed_staff, row.processed_by)} />
+      </div>
+
+      <div className="mt-3 grid gap-2">
+        {row.status === "awaiting_approval" && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10 w-full border-warning/30 text-warning hover:bg-warning/10"
+            disabled={!isSuperAdmin || approving}
+            onClick={() => onApprove(row)}
+            title={!isSuperAdmin ? "Super Admin only" : "Approve payout"}
+          >
+            <ShieldCheck className="size-4" /> Approve
+          </Button>
+        )}
+        {canOpenProcess && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10 w-full"
+            disabled={!canManage || (row.status === "awaiting_approval" && !isSuperAdmin)}
+            onClick={() => onSelectProcess(row)}
+          >
+            Process
+          </Button>
+        )}
+        {cspayPending && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10 w-full border-warning/30 text-warning hover:bg-warning/10"
+            disabled={!canManage || syncingId === row.id}
+            onClick={() => onSync(row)}
+            title="Sync this payout with CSPay"
+          >
+            <RefreshCw className={cn("size-4", syncingId === row.id && "animate-spin")} />
+            {syncingId === row.id ? "Syncing" : "Sync CSPay"}
+          </Button>
+        )}
+        {row.status === "paid" && (
+          <div className="rounded-lg border border-success/25 bg-success/10 px-3 py-2 text-center text-sm font-semibold text-success">
+            Paid {fmtUSD(row.actual_amount_paid)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MobileFact({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "min-w-0 break-words text-right text-xs text-foreground",
+          mono && "font-mono",
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 function ProcessPanel({
   row,
   form,
@@ -994,7 +1158,7 @@ function ProcessPanel({
     : "Amount is required before sending through CSPay.";
   return (
     <Card className="border-warning/30 bg-card/95 shadow-[0_0_36px_-28px_rgba(255,215,109,.9)]">
-      <CardContent className="space-y-4 p-5">
+      <CardContent className="space-y-4 p-3 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-warning">
@@ -1046,19 +1210,25 @@ function ProcessPanel({
         >
           {sendHelp}
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
           <Button
             variant="outline"
-            className="border-destructive/30 text-destructive hover:bg-destructive/10"
+            className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 sm:w-auto"
             disabled={loading}
             onClick={() => onMark("rejected")}
           >
             <XCircle className="size-4" /> Reject
           </Button>
-          <Button variant="outline" disabled={loading} onClick={() => onMark("failed")}>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={loading}
+            onClick={() => onMark("failed")}
+          >
             <AlertTriangle className="size-4" /> Failed
           </Button>
           <Button
+            className="w-full sm:w-auto"
             disabled={loading || !hasSendDetails}
             onClick={() => {
               if (!hasSendDetails) {
